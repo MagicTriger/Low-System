@@ -58,24 +58,56 @@
             <a-button type="link" @click="showCustomIconManager"> 管理自定义图标 </a-button>
           </a-space>
 
-          <a-select
-            v-model:value="formData.icon"
-            placeholder="请输入关键词搜索图标（支持模糊查询）"
-            show-search
-            allow-clear
-            :filter-option="filterIconOption"
-            :dropdown-render="dropdownRender"
-            @search="handleIconSearch"
-            :not-found-content="iconSearchQuery ? '未找到匹配的图标' : '请输入关键词搜索'"
-            :loading="iconLoading"
-          >
-            <a-select-option v-for="icon in iconList" :key="icon.name" :value="icon.name">
-              <div class="icon-option">
-                <component :is="icon.component" class="icon-preview" />
-                <span class="icon-name">{{ icon.name }}</span>
+          <a-input-group compact style="display: flex">
+            <a-input
+              :value="formData.icon"
+              placeholder="请输入关键词搜索图标（支持模糊查询）"
+              readonly
+              style="flex: 1; cursor: pointer"
+              @click="showIconSelector = true"
+            >
+              <template #prefix>
+                <component
+                  :is="getSelectedIconComponent()"
+                  v-if="formData.icon && getSelectedIconComponent()"
+                  class="selected-icon-preview"
+                />
+              </template>
+            </a-input>
+            <a-button v-if="formData.icon" @click="formData.icon = ''" style="border-left: 0">
+              <template #icon>
+                <CloseOutlined />
+              </template>
+            </a-button>
+          </a-input-group>
+
+          <!-- 图标选择器弹框 -->
+          <a-modal v-model:visible="showIconSelector" title="选择图标" :width="800" @ok="showIconSelector = false">
+            <a-input
+              v-model:value="iconSearchQuery"
+              placeholder="搜索图标..."
+              allow-clear
+              @change="(e: any) => handleIconSearch(e.target.value)"
+              style="margin-bottom: 16px"
+            >
+              <template #prefix>
+                <SearchOutlined />
+              </template>
+            </a-input>
+            <div class="icon-grid">
+              <div
+                v-for="icon in iconList"
+                :key="icon.name"
+                class="icon-grid-item"
+                :class="{ 'icon-grid-item-selected': formData.icon === icon.name }"
+                @click="selectIcon(icon.name)"
+              >
+                <component :is="icon.component" class="icon-grid-icon" />
+                <div class="icon-grid-name">{{ icon.name }}</div>
               </div>
-            </a-select-option>
-          </a-select>
+            </div>
+            <a-empty v-if="iconList.length === 0" description="未找到匹配的图标" />
+          </a-modal>
         </a-space>
       </a-form-item>
 
@@ -97,6 +129,7 @@
 import { ref, computed, watch, h } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
+import { CloseOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { useModule } from '@/core/state/helpers'
 import type { MenuResource, MenuTreeNode } from '@/core/api/menu'
 import { getIconLibraryManager, getCustomIconManager } from '@/core/renderer/icons'
@@ -132,6 +165,7 @@ const iconLoading = ref(false)
 const searchDebounceTimer = ref<number | null>(null)
 const selectedLibrary = ref<string>('all')
 const customIconManagerVisible = ref(false)
+const showIconSelector = ref(false)
 const formData = ref({
   id: undefined as number | undefined,
   parentId: undefined as number | undefined,
@@ -357,6 +391,37 @@ const dropdownRender = ({ menuNode }: any) => {
   return h('div', { class: 'icon-dropdown' }, [menuNode])
 }
 
+// 选择图标
+const selectIcon = (iconName: string) => {
+  formData.value.icon = iconName
+  showIconSelector.value = false
+}
+
+// 获取选中图标的组件
+const getSelectedIconComponent = () => {
+  if (!formData.value.icon) return null
+
+  // 检查是否是自定义图标 (格式: custom/iconName)
+  if (formData.value.icon.startsWith('custom/')) {
+    const customIconName = formData.value.icon.replace('custom/', '')
+    const customIcon = iconManager.getIcon('custom', customIconName)
+    if (customIcon) {
+      return customIcon.component
+    }
+  }
+
+  // 尝试从所有图标库中查找
+  const allLibraries = iconManager.getAllLibraries()
+  for (const library of allLibraries) {
+    const icon = iconManager.getIcon(library.id, formData.value.icon)
+    if (icon) {
+      return icon.component
+    }
+  }
+
+  return null
+}
+
 // 监听
 watch(
   () => props.visible,
@@ -426,5 +491,83 @@ watch(
 /* 搜索时的加载状态 */
 :deep(.ant-select-selection-placeholder) {
   font-size: 13px;
+}
+
+/* 选中图标的显示容器 */
+.selected-icon-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 选中图标的预览样式 */
+.selected-icon-preview {
+  font-size: 16px;
+  color: #1890ff;
+  flex-shrink: 0;
+}
+
+/* 选中图标的名称 */
+.selected-icon-name {
+  font-size: 14px;
+  color: #262626;
+}
+
+/* 确保选中的值也显示图标 */
+:deep(.ant-select-selection-item) {
+  display: flex;
+  align-items: center;
+}
+
+/* 输入框中的图标预览 */
+.input-icon-preview {
+  font-size: 16px;
+  color: #1890ff;
+}
+
+/* 图标网格 */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.icon-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.icon-grid-item:hover {
+  border-color: #1890ff;
+  background-color: #f0f5ff;
+}
+
+.icon-grid-item-selected {
+  border-color: #1890ff;
+  background-color: #e6f7ff;
+}
+
+.icon-grid-icon {
+  font-size: 24px;
+  color: #1890ff;
+  margin-bottom: 8px;
+}
+
+.icon-grid-name {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.2;
 }
 </style>

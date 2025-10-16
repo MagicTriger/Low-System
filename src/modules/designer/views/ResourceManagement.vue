@@ -18,32 +18,6 @@
             </template>
             刷新
           </a-button>
-
-          <!-- 用户头像下拉菜单 -->
-          <a-dropdown :trigger="['click']" placement="bottomRight">
-            <div class="user-avatar-wrapper">
-              <a-avatar :size="32" :src="userAvatar" style="cursor: pointer">
-                <template #icon><user-outlined /></template>
-              </a-avatar>
-            </div>
-            <template #overlay>
-              <a-menu>
-                <a-menu-item key="profile" @click="handleUserProfile">
-                  <user-outlined />
-                  <span style="margin-left: 8px">个人中心</span>
-                </a-menu-item>
-                <a-menu-item key="settings" @click="handleUserSettings">
-                  <setting-outlined />
-                  <span style="margin-left: 8px">账号设置</span>
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="logout" @click="handleLogout">
-                  <logout-outlined />
-                  <span style="margin-left: 8px">退出登录</span>
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
         </div>
       </div>
 
@@ -157,9 +131,6 @@
 
     <!-- 资源表单 -->
     <ResourceForm v-model:visible="formVisible" :edit-data="editData" @success="handleFormSuccess" />
-
-    <!-- 用户设置弹窗 -->
-    <UserSettingsModal v-model:visible="userSettingsVisible" @success="handleUserSettingsSuccess" />
   </div>
 </template>
 
@@ -181,9 +152,6 @@ import {
   DesktopOutlined,
   EditOutlined,
   DeleteOutlined,
-  UserOutlined,
-  SettingOutlined,
-  LogoutOutlined,
 } from '@ant-design/icons-vue'
 import { useModule } from '@/core/state/helpers'
 import { useLogger } from '@/core/services/helpers'
@@ -192,7 +160,6 @@ import type { MenuResource, MenuTreeNode } from '@/core/api/menu'
 import { getDefaultClients } from '@/config/clients'
 import ResourceForm from '../components/ResourceForm.vue'
 import ResourceCardView from '../components/ResourceCardView.vue'
-import UserSettingsModal from '../components/UserSettingsModal.vue'
 import { getIconLibraryManager } from '@/core/renderer/icons/IconLibraryManager'
 
 // 初始化服务
@@ -376,65 +343,6 @@ const handleRefresh = () => {
   fetchData()
 }
 
-// 用户相关
-// 获取状态管理器
-function getStateManager() {
-  if (typeof window !== 'undefined' && (window as any).__MIGRATION_SYSTEM__) {
-    return (window as any).__MIGRATION_SYSTEM__.stateManagement.stateManager
-  }
-  return null
-}
-
-// 用户头像
-const userAvatar = computed(() => {
-  const stateManager = getStateManager()
-  if (!stateManager) return undefined
-  const authState = stateManager.getState('auth')
-  return authState?.userInfo?.avatar
-})
-
-// 用户设置弹窗
-const userSettingsVisible = ref(false)
-
-// 个人中心
-function handleUserProfile() {
-  notify.info('个人中心功能开发中...')
-}
-
-// 账号设置
-function handleUserSettings() {
-  userSettingsVisible.value = true
-}
-
-// 用户设置成功回调
-function handleUserSettingsSuccess() {
-  notify.success('用户信息已更新')
-}
-
-// 退出登录
-function handleLogout() {
-  Modal.confirm({
-    title: '确认退出',
-    content: '确定要退出登录吗？',
-    okText: '确定',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        const stateManager = getStateManager()
-        if (stateManager) {
-          // 调用登出 action
-          await stateManager.dispatch('auth/logout')
-          notify.success('已退出登录')
-          // 跳转到登录页
-          router.push('/designer/login')
-        }
-      } catch (error: any) {
-        notify.error('退出登录失败', error.message || '未知错误')
-      }
-    },
-  })
-}
-
 // 表单相关
 const formVisible = ref(false)
 const editData = ref<MenuResource | null>(null)
@@ -577,7 +485,17 @@ const getNodeTypeColor = (nodeType: number) => {
 const getIconComponent = (iconName?: string) => {
   if (!iconName) return null
 
-  // 先尝试从图标库获取
+  // 检查是否是自定义图标 (格式: custom/iconName)
+  if (iconName.startsWith('custom/')) {
+    const customIconName = iconName.replace('custom/', '')
+    const iconManager = getIconLibraryManager()
+    const customIcon = iconManager.getIcon('custom', customIconName)
+    if (customIcon) {
+      return customIcon.component
+    }
+  }
+
+  // 尝试从图标库获取
   const iconManager = getIconLibraryManager()
   const icon = iconManager.getIcon('antd', iconName)
   if (icon) {
@@ -633,18 +551,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.user-avatar-wrapper {
-  margin-left: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: opacity 0.3s;
-
-  &:hover {
-    opacity: 0.8;
-  }
 }
 
 .filter-section {

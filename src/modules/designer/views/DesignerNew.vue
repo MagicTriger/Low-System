@@ -44,32 +44,6 @@
             <template #icon><arrow-left-outlined /></template>
           </a-button>
         </a-tooltip>
-
-        <!-- 用户头像下拉菜单 -->
-        <a-dropdown :trigger="['click']" placement="bottomRight">
-          <div class="user-avatar-wrapper">
-            <a-avatar :size="32" :src="userAvatar" style="cursor: pointer">
-              <template #icon><user-outlined /></template>
-            </a-avatar>
-          </div>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item key="profile" @click="handleUserProfile">
-                <user-outlined />
-                <span style="margin-left: 8px">个人中心</span>
-              </a-menu-item>
-              <a-menu-item key="settings" @click="handleUserSettings">
-                <setting-outlined />
-                <span style="margin-left: 8px">账号设置</span>
-              </a-menu-item>
-              <a-menu-divider />
-              <a-menu-item key="logout" @click="handleLogout">
-                <logout-outlined />
-                <span style="margin-left: 8px">退出登录</span>
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
       </div>
     </div>
 
@@ -96,8 +70,12 @@
             :controls="currentView?.controls || []"
             :selected-control-id="selectedControlId"
             :view-id="currentView?.id || 'default'"
+            :has-clipboard-data="!!designerState.clipboard.value"
             @control-select="handleControlSelect"
+            @control-copy="handleControlCopy"
             @control-delete="handleControlDelete"
+            @control-move="handleControlMove"
+            @control-paste="handleControlPaste"
           />
         </div>
       </div>
@@ -187,9 +165,6 @@
       v-model:operations="dataConfig.operations"
       @save="handleDataConfigSave"
     />
-
-    <!-- 用户设置弹窗 -->
-    <UserSettingsModal v-model:visible="userSettingsVisible" @success="handleUserSettingsSuccess" />
   </div>
 </template>
 
@@ -197,17 +172,7 @@
 import { ref, computed, onMounted, onUnmounted, h, nextTick, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  SaveOutlined,
-  EyeOutlined,
-  UndoOutlined,
-  RedoOutlined,
-  EditOutlined,
-  ArrowLeftOutlined,
-  UserOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-} from '@ant-design/icons-vue'
+import { SaveOutlined, EyeOutlined, UndoOutlined, RedoOutlined, EditOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue'
 
 // 导入组件
 import { CanvasToolbar, CanvasArea, DesignerControlRenderer, AlignmentToolbar } from '@/core/renderer/designer/canvas'
@@ -215,7 +180,6 @@ import PropertiesPanel from '@/core/renderer/designer/settings/PropertiesPanel.v
 import DataSourceConfigModal from '@/core/renderer/designer/communication/DataSourceConfigModal.vue'
 import ControlsPanel from '@/core/renderer/designer/controls.vue'
 import OutlineTree from '@/core/renderer/designer/outline/OutlineTree.vue'
-import UserSettingsModal from '@/modules/designer/components/UserSettingsModal.vue'
 
 // 导入 composables
 import { useDesignerState } from '@/core/renderer/designer/composables/useDesignerState'
@@ -338,74 +302,6 @@ function handleBack() {
   } else {
     router.push('/designer/resource')
   }
-}
-
-// 用户相关操作
-// 获取用户信息
-function getStateManager() {
-  if (typeof window !== 'undefined' && (window as any).__MIGRATION_SYSTEM__) {
-    return (window as any).__MIGRATION_SYSTEM__.stateManagement.stateManager
-  }
-  return null
-}
-
-// 用户头像
-const userAvatar = computed(() => {
-  const stateManager = getStateManager()
-  if (!stateManager) return undefined
-  const authState = stateManager.getState('auth')
-  return authState?.userInfo?.avatar
-})
-
-// 用户名
-const username = computed(() => {
-  const stateManager = getStateManager()
-  if (!stateManager) return '未登录'
-  const authState = stateManager.getState('auth')
-  return authState?.userInfo?.displayName || authState?.userInfo?.username || '未登录'
-})
-
-// 个人中心
-function handleUserProfile() {
-  message.info('个人中心功能开发中...')
-  // TODO: 跳转到个人中心页面
-}
-
-// 用户设置弹窗
-const userSettingsVisible = ref(false)
-
-// 账号设置
-function handleUserSettings() {
-  userSettingsVisible.value = true
-}
-
-// 用户设置成功回调
-function handleUserSettingsSuccess() {
-  message.success('用户信息已更新')
-}
-
-// 退出登录
-function handleLogout() {
-  Modal.confirm({
-    title: '确认退出',
-    content: '确定要退出登录吗？',
-    okText: '确定',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        const stateManager = getStateManager()
-        if (stateManager) {
-          // 调用登出 action
-          await stateManager.dispatch('auth/logout')
-          message.success('已退出登录')
-          // 跳转到登录页
-          router.push('/designer/login')
-        }
-      } catch (error: any) {
-        message.error('退出登录失败: ' + (error.message || '未知错误'))
-      }
-    },
-  })
 }
 
 // 工具栏操作
@@ -747,6 +643,49 @@ function isDescendant(parent: any, childId: string): boolean {
 function handleControlCopy(control: any) {
   designerState.copyToClipboard(control)
   message.success('已复制组件到剪贴板')
+}
+
+// 控件粘贴处理（从大纲树）
+function handleControlPaste(targetId: string, position: 'before' | 'after' | 'inside') {
+  if (!currentView.value) return
+
+  // 从剪贴板获取控件
+  const clipboardControl = designerState.clipboard.value
+  if (!clipboardControl) {
+    message.warning('剪贴板为空')
+    return
+  }
+
+  // 深拷贝控件并重新生成ID
+  const clonedControl = ControlFactory.clone(clipboardControl)
+
+  // 根据位置添加控件
+  if (position === 'inside') {
+    // 粘贴到容器内部
+    addControl(clonedControl, targetId)
+  } else {
+    // 粘贴为兄弟节点
+    const targetPosition = findControlParentAndIndex(targetId)
+    if (targetPosition) {
+      const insertIndex = position === 'before' ? targetPosition.index : targetPosition.index + 1
+      addControl(clonedControl, targetPosition.parentId, insertIndex)
+    }
+  }
+
+  // 选中新粘贴的控件
+  selectControl(clonedControl.id)
+
+  // 记录历史
+  history.push(
+    'add-control',
+    {
+      control: clonedControl,
+      parentId: position === 'inside' ? targetId : findControlParentAndIndex(targetId)?.parentId,
+    },
+    `粘贴控件 ${clonedControl.name || clonedControl.kind}`
+  )
+
+  markAsUnsaved()
 }
 
 function handleControlDuplicate(controlId: string) {

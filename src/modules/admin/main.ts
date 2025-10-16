@@ -28,29 +28,32 @@ initializeIconLibraries()
   // 设置路由守卫
   setupRouterGuards(router)
 
-  // 加载菜单树并注册动态路由
-  try {
-    if (import.meta.env.DEV) {
-      console.log('🔄 正在加载菜单树...')
-    }
-
-    const response = await menuApiService.getMenuTree()
-
-    if (response.success && response.data) {
-      // 注册动态路由
-      registerDynamicRoutes(router, response.data)
-
+  // 延迟加载菜单树,避免阻塞应用启动
+  // 菜单树会在用户登录成功后再加载
+  setTimeout(async () => {
+    try {
       if (import.meta.env.DEV) {
-        console.log('✅ 菜单树加载成功')
-        console.log('✅ 动态路由注册完成')
+        console.log('🔄 正在加载菜单树...')
       }
-    } else {
-      console.warn('⚠️ 菜单树加载失败，使用默认菜单')
+
+      const response = await menuApiService.getMenuTree()
+
+      if (response.success && response.data) {
+        // 注册动态路由
+        registerDynamicRoutes(router, response.data)
+
+        if (import.meta.env.DEV) {
+          console.log('✅ 菜单树加载成功')
+          console.log('✅ 动态路由注册完成')
+        }
+      } else {
+        console.warn('⚠️ 菜单树加载失败，使用默认菜单')
+      }
+    } catch (error) {
+      console.error('❌ 菜单树加载失败:', error)
+      console.warn('⚠️ 将使用默认菜单,登录后会自动重试')
     }
-  } catch (error) {
-    console.error('❌ 菜单树加载失败:', error)
-    console.warn('⚠️ 将使用默认菜单')
-  }
+  }, 100)
 
   // 开发环境配置
   if (import.meta.env.DEV) {

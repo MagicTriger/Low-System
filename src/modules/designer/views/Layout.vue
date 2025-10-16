@@ -1,6 +1,7 @@
 <template>
   <BaseLayout
     :config="layoutConfig"
+    :user-info="userInfo"
     :notification-count="notificationCount"
     @icon-library-click="handleIconLibraryClick"
     @notification-click="handleNotificationClick"
@@ -45,6 +46,9 @@
   <a-modal v-model:open="showIconLibrary" title="图标库" width="900px" :footer="null" :destroy-on-close="true">
     <IconPicker library-id="antd" @select="handleIconSelect" />
   </a-modal>
+
+  <!-- 用户设置弹窗 -->
+  <UserSettingsModal v-model:visible="userSettingsVisible" @success="handleUserSettingsSuccess" />
 </template>
 
 <script setup lang="ts">
@@ -57,14 +61,24 @@ import { FolderOutlined } from '@ant-design/icons-vue'
 import { BaseLayout } from '@/core/layout/ui'
 import { getDesignerLayoutConfig } from '../config/layout'
 import IconPicker from '@/core/renderer/icons/IconPicker.vue'
+import UserSettingsModal from '../components/UserSettingsModal.vue'
 
 const router = useRouter()
 const route = useRoute()
 const showIconLibrary = ref(false)
+const userSettingsVisible = ref(false)
 const notificationCount = ref(3)
 const selectedKeys = ref<string[]>([route.path])
 
 // 用户信息
+// 获取状态管理器
+function getStateManager() {
+  if (typeof window !== 'undefined' && (window as any).__MIGRATION_SYSTEM__) {
+    return (window as any).__MIGRATION_SYSTEM__.stateManagement.stateManager
+  }
+  return null
+}
+
 // 用户信息 - 使用 ref 而不是 computed 来确保响应性
 const username = ref(localStorage.getItem('username') || '用户')
 const userInitial = computed(() => {
@@ -73,6 +87,26 @@ const userInitial = computed(() => {
     return name.charAt(0)
   }
   return name.charAt(0).toUpperCase()
+})
+
+// 用户信息对象 - 传递给BaseLayout
+const userInfo = computed(() => {
+  const stateManager = getStateManager()
+  if (stateManager) {
+    const authState = stateManager.getState('auth')
+    if (authState?.userInfo) {
+      return {
+        name: authState.userInfo.displayName || authState.userInfo.username || username.value,
+        avatar: authState.userInfo.avatar,
+        role: '设计师',
+      }
+    }
+  }
+  return {
+    name: username.value,
+    avatar: undefined,
+    role: '设计师',
+  }
 })
 
 // 布局配置
@@ -106,15 +140,33 @@ const handleUserAction = (action: string) => {
       message.info('个人中心功能开发中')
       break
     case 'settings':
-      message.info('个人设置功能开发中')
+      userSettingsVisible.value = true
       break
     case 'logout':
-      localStorage.removeItem('token')
-      localStorage.removeItem('username')
-      message.success('退出登录成功')
-      router.push('/designer/login')
+      const stateManager = getStateManager()
+      if (stateManager) {
+        stateManager
+          .dispatch('auth/logout')
+          .then(() => {
+            message.success('退出登录成功')
+            router.push('/designer/login')
+          })
+          .catch((error: any) => {
+            message.error('退出登录失败: ' + (error.message || '未知错误'))
+          })
+      } else {
+        localStorage.removeItem('token')
+        localStorage.removeItem('username')
+        message.success('退出登录成功')
+        router.push('/designer/login')
+      }
       break
   }
+}
+
+// 用户设置成功回调
+const handleUserSettingsSuccess = () => {
+  message.success('用户信息已更新')
 }
 
 // 处理图标选择

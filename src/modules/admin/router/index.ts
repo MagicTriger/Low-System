@@ -10,6 +10,11 @@ const NotFound = () => import('../views/NotFound.vue')
  * 基础路由配置 (管理端专用)
  */
 export const routes: RouteRecordRaw[] = [
+  // 根路径重定向到管理端登录页
+  {
+    path: '/',
+    redirect: '/admin/login',
+  },
   // 管理端登录页
   {
     path: '/admin/login',

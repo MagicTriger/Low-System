@@ -113,46 +113,6 @@
                   <lock-outlined v-if="dataRef.locked" />
                   <unlock-outlined v-else />
                 </a-button>
-
-                <a-dropdown :trigger="['click']" @click.stop>
-                  <a-button type="text" size="small">
-                    <more-outlined />
-                  </a-button>
-                  <template #overlay>
-                    <a-menu @click="e => handleNodeAction(e, dataRef)">
-                      <a-menu-item key="copy">
-                        <copy-outlined />
-                        复制
-                      </a-menu-item>
-                      <a-menu-item key="duplicate">
-                        <diff-outlined />
-                        复制并粘贴
-                      </a-menu-item>
-                      <a-menu-item key="delete" :disabled="dataRef.locked">
-                        <delete-outlined />
-                        删除
-                      </a-menu-item>
-                      <a-menu-divider />
-                      <a-menu-item key="move-up" :disabled="!canMoveUp(dataRef)">
-                        <arrow-up-outlined />
-                        上移
-                      </a-menu-item>
-                      <a-menu-item key="move-down" :disabled="!canMoveDown(dataRef)">
-                        <arrow-down-outlined />
-                        下移
-                      </a-menu-item>
-                      <a-menu-divider />
-                      <a-menu-item key="rename">
-                        <edit-outlined />
-                        重命名
-                      </a-menu-item>
-                      <a-menu-item key="properties">
-                        <setting-outlined />
-                        属性
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
               </a-button-group>
             </div>
           </div>
@@ -175,13 +135,13 @@
     </div>
 
     <!-- 右键菜单 -->
-    <a-dropdown
-      v-model:open="contextMenuVisible"
-      :trigger="['contextmenu']"
-      :overlay-style="{ position: 'fixed', left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+    <div
+      v-if="contextMenuVisible"
+      class="context-menu-overlay"
+      @click="contextMenuVisible = false"
+      @contextmenu.prevent="contextMenuVisible = false"
     >
-      <div></div>
-      <template #overlay>
+      <div class="context-menu" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }" @click.stop>
         <a-menu @click="handleContextMenuClick">
           <a-menu-item key="select">
             <select-outlined />
@@ -191,22 +151,27 @@
             <copy-outlined />
             复制
           </a-menu-item>
+          <a-menu-item key="paste-before" :disabled="!hasClipboard">
+            <vertical-align-top-outlined />
+            粘贴到之前
+          </a-menu-item>
+          <a-menu-item key="paste-after" :disabled="!hasClipboard">
+            <vertical-align-bottom-outlined />
+            粘贴到之后
+          </a-menu-item>
+          <a-menu-item key="paste-inside" :disabled="!hasClipboard || !canPasteInside">
+            <snippets-outlined />
+            粘贴到内部
+          </a-menu-item>
+          <a-menu-divider />
           <a-menu-item key="delete" :disabled="contextMenuNode?.locked">
             <delete-outlined />
             删除
           </a-menu-item>
           <a-menu-divider />
-          <a-menu-item key="expand-all">
-            <branches-outlined />
-            展开所有子项
-          </a-menu-item>
-          <a-menu-item key="collapse-all">
-            <shrink-outlined />
-            折叠所有子项
-          </a-menu-item>
         </a-menu>
-      </template>
-    </a-dropdown>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -231,7 +196,9 @@ import {
   ArrowDownOutlined,
   EditOutlined,
   SettingOutlined,
-  ShrinkOutlined,
+  SnippetsOutlined,
+  VerticalAlignTopOutlined,
+  VerticalAlignBottomOutlined,
 } from '@ant-design/icons-vue'
 import type { Control } from '../../base'
 
@@ -251,12 +218,14 @@ interface Props {
   controls: Control[]
   selectedControlId?: string
   viewId: string
+  hasClipboardData?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   controls: () => [],
   selectedControlId: '',
   viewId: '',
+  hasClipboardData: false,
 })
 
 // 事件定义
@@ -264,6 +233,7 @@ const emit = defineEmits<{
   'control-select': [controlId: string]
   'control-delete': [controlId: string]
   'control-copy': [control: Control]
+  'control-paste': [targetId: string, position: 'before' | 'after' | 'inside']
   'control-move': [controlId: string, targetId: string, position: 'before' | 'after' | 'inside']
   'control-toggle-visibility': [controlId: string]
   'control-toggle-lock': [controlId: string]
@@ -286,6 +256,13 @@ const contextMenuNode = ref<TreeNode | null>(null)
 const isSearching = computed(() => searchKeyword.value.trim().length > 0)
 const isEmpty = computed(() => props.controls.length === 0)
 const totalControls = computed(() => countControls(props.controls))
+const hasClipboard = computed(() => props.hasClipboardData)
+const canPasteInside = computed(() => {
+  if (!contextMenuNode.value) return false
+  // 只有容器类型的控件可以粘贴到内部
+  const containerTypes = ['flex', 'grid', 'mobile-container', 'container']
+  return containerTypes.includes(contextMenuNode.value.kind.toLowerCase())
+})
 
 const treeData = computed(() => {
   return buildTreeData(props.controls)
@@ -454,28 +431,52 @@ const handleSelect = (keys: string[], { node }: any) => {
   }
 }
 
-const handleDrop = ({ node, dragNode, dropPosition }: any) => {
-  const targetId = node.control.id
-  const dragId = dragNode.control.id
+const handleDrop = (info: any) => {
+  try {
+    const { node, dragNode, dropPosition, dropToGap } = info
 
-  let position: 'before' | 'after' | 'inside'
-  if (dropPosition === 0) {
-    position = 'inside'
-  } else if (dropPosition === -1) {
-    position = 'before'
-  } else {
-    position = 'after'
-  }
+    if (!node || !dragNode || !node.control || !dragNode.control) {
+      console.warn('拖拽信息不完整', info)
+      return
+    }
 
-  emit('control-move', dragId, targetId, position)
+    const targetId = node.control.id
+    const dragId = dragNode.control.id
+
+    // 不能拖拽到自己
+    if (dragId === targetId) {
+      return
+    }
+
+    let position: 'before' | 'after' | 'inside'
+
+    // dropToGap 为 true 表示拖拽到节点之间的间隙
+    // dropToGap 为 false 表示拖拽到节点内部
+    if (!dropToGap) {
+      position = 'inside'
+    } else {
+      // dropPosition 是相对于目标节点的位置
+      // -1 表示在目标节点之前，1 表示在目标节点之后
+      position = dropPosition === -1 ? 'before' : 'after'
+    }
+
+    emit('control-move', dragId, targetId, position)
+  } catch (error) {}
 }
 
 const handleRightClick = ({ event, node }: any) => {
   event.preventDefault()
+  event.stopPropagation()
+
+  // 设置菜单位置
   contextMenuPosition.x = event.clientX
   contextMenuPosition.y = event.clientY
   contextMenuNode.value = node
-  contextMenuVisible.value = true
+
+  // 延迟显示菜单,避免闪烁
+  nextTick(() => {
+    contextMenuVisible.value = true
+  })
 }
 
 const handleNodeHover = (node: TreeNode, isHover: boolean) => {
@@ -501,7 +502,8 @@ const canMoveDown = (node: TreeNode) => {
   return true
 }
 
-const handleMenuClick = ({ key }: { key: string }) => {
+const handleMenuClick = (info: any) => {
+  const key = String(info.key)
   switch (key) {
     case 'select-all':
       emit('controls-select-all')
@@ -519,7 +521,8 @@ const handleMenuClick = ({ key }: { key: string }) => {
   }
 }
 
-const handleNodeAction = ({ key }: { key: string }, node: TreeNode) => {
+const handleNodeAction = (info: any, node: TreeNode) => {
+  const key = String(info.key)
   switch (key) {
     case 'copy':
       emit('control-copy', node.control)
@@ -546,15 +549,31 @@ const handleNodeAction = ({ key }: { key: string }, node: TreeNode) => {
   }
 }
 
-const handleContextMenuClick = ({ key }: { key: string }) => {
+const handleContextMenuClick = (info: any) => {
   if (!contextMenuNode.value) return
 
+  const key = String(info.key)
   switch (key) {
     case 'select':
       emit('control-select', contextMenuNode.value.control.id)
       break
     case 'copy':
       emit('control-copy', contextMenuNode.value.control)
+      break
+    case 'paste-before':
+      if (contextMenuNode.value) {
+        emit('control-paste', contextMenuNode.value.control.id, 'before')
+      }
+      break
+    case 'paste-after':
+      if (contextMenuNode.value) {
+        emit('control-paste', contextMenuNode.value.control.id, 'after')
+      }
+      break
+    case 'paste-inside':
+      if (contextMenuNode.value) {
+        emit('control-paste', contextMenuNode.value.control.id, 'inside')
+      }
       break
     case 'delete':
       emit('control-delete', contextMenuNode.value.control.id)
@@ -882,6 +901,57 @@ watch(
 
 :deep(.ant-dropdown-menu-item:hover) {
   background: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* 右键菜单样式 */
+.context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: transparent;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 8px;
+  box-shadow:
+    0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  min-width: 160px;
+}
+
+.context-menu :deep(.ant-menu) {
+  background: transparent !important;
+  border: none !important;
+}
+
+.context-menu :deep(.ant-menu-item) {
+  color: #374151 !important;
+  padding: 8px 16px !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+.context-menu :deep(.ant-menu-item:hover) {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.context-menu :deep(.ant-menu-item-disabled) {
+  color: #d1d5db !important;
+  opacity: 0.5 !important;
+}
+
+.context-menu :deep(.ant-menu-item-divider) {
+  margin: 4px 0 !important;
+  background: rgba(0, 0, 0, 0.06) !important;
 }
 
 /* 响应式设计 */

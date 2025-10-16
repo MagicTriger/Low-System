@@ -20,8 +20,6 @@ export class IconLibraryManager {
       const key = `${library.id}:${icon.name}`
       this.iconCache.set(key, icon)
     })
-
-    console.log(`✅ Icon library registered: ${library.name} (${library.icons.length} icons)`)
   }
 
   /**
