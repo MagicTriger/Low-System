@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>侧边栏切换测试</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      .unified-layout {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        background: #f5f5f5;
+        overflow: hidden;
+        --layout-sidebar-width: 240px;
+        --layout-sidebar-collapsed-width: 64px;
+        --layout-transition-duration: 0.3s;
+      }
+
+      .unified-layout-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        height: 64px;
+        background: #ffffff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      .toggle-btn {
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: #f0f0f0;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .toggle-btn:hover {
+        background: #e0e0e0;
+      }
+
+      .unified-layout-sidebar {
+        position: fixed;
+        top: 64px;
+        left: 0;
+        bottom: 0;
+        width: var(--layout-sidebar-width);
+        z-index: 999;
+        background: #001529;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+        transition: width var(--layout-transition-duration);
+        border-right: 1px solid rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+        color: white;
+        padding: 20px;
+      }
+
+      .unified-layout.unified-layout-collapsed .unified-layout-sidebar {
+        width: var(--layout-sidebar-collapsed-width);
+      }
+
+      .unified-layout-content {
+        margin-top: 64px;
+        margin-left: var(--layout-sidebar-width);
+        min-height: calc(100vh - 64px);
+        transition: margin-left var(--layout-transition-duration);
+        background: #f5f5f5;
+        overflow-y: auto;
+        padding: 24px;
+      }
+
+      .unified-layout.unified-layout-collapsed .unified-layout-content {
+        margin-left: var(--layout-sidebar-collapsed-width);
+      }
+
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+
+      .card h2 {
+        margin-bottom: 12px;
+        color: #333;
+      }
+
+      .card p {
+        color: #666;
+        line-height: 1.6;
+      }
+
+      .status {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        font-family: monospace;
+        font-size: 12px;
+      }
+
+      .status div {
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="unified-layout" id="layout">
+      <header class="unified-layout-header">
+        <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+        <span style="margin-left: 16px; font-weight: 500">侧边栏切换测试</span>
+      </header>
+
+      <aside class="unified-layout-sidebar">
+        <h3>侧边栏</h3>
+        <p>这是侧边栏内容</p>
+        <p>宽度应该在 240px 和 64px 之间切换</p>
+      </aside>
+
+      <main class="unified-layout-content">
+        <div class="card">
+          <h2>资源管理</h2>
+          <p>这是主内容区域。点击左上角的汉堡菜单按钮,观察以下变化:</p>
+          <ul>
+            <li>侧边栏宽度从 240px 变为 64px</li>
+            <li>内容区域的 margin-left 从 240px 变为 64px</li>
+            <li>内容区域应该向左移动,填充侧边栏腾出的空间</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2>测试卡片 1</h2>
+          <p>这是一个测试卡片,用于验证内容区域是否正确调整位置。</p>
+        </div>
+
+        <div class="card">
+          <h2>测试卡片 2</h2>
+          <p>如果侧边栏收起后,这些卡片仍然完整可见,说明修复成功。</p>
+        </div>
+
+        <div class="card">
+          <h2>测试卡片 3</h2>
+          <p>如果这些卡片被隐藏或压缩,说明还有问题需要修复。</p>
+        </div>
+      </main>
+    </div>
+
+    <div class="status" id="status">
+      <div><strong>状态监控</strong></div>
+      <div id="collapsed-status">Collapsed: false</div>
+      <div id="sidebar-width">Sidebar Width: 240px</div>
+      <div id="content-margin">Content Margin: 240px</div>
+    </div>
+
+    <script>
+      let collapsed = false
+
+      function toggleSidebar() {
+        const layout = document.getElementById('layout')
+        collapsed = !collapsed
+
+        if (collapsed) {
+          layout.classList.add('unified-layout-collapsed')
+        } else {
+          layout.classList.remove('unified-layout-collapsed')
+        }
+
+        updateStatus()
+      }
+
+      function updateStatus() {
+        const sidebar = document.querySelector('.unified-layout-sidebar')
+        const content = document.querySelector('.unified-layout-content')
+
+        const sidebarWidth = window.getComputedStyle(sidebar).width
+        const contentMargin = window.getComputedStyle(content).marginLeft
+
+        document.getElementById('collapsed-status').textContent = `Collapsed: ${collapsed}`
+        document.getElementById('sidebar-width').textContent = `Sidebar Width: ${sidebarWidth}`
+        document.getElementById('content-margin').textContent = `Content Margin: ${contentMargin}`
+      }
+
+      // 初始化状态
+      updateStatus()
+
+      // 监听窗口大小变化
+      window.addEventListener('resize', updateStatus)
+    </script>
+  </body>
+</html>

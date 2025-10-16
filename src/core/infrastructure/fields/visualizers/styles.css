@@ -1,0 +1,94 @@
+/**
+ * 可视化组件通用样式
+ */
+
+/* 通用容器样式 */
+.visualizer-container {
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+/* 通用标签样式 */
+.visualizer-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* 通用输入框样式 */
+.visualizer-input {
+  width: 50px;
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  font-size: 12px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.visualizer-input:hover {
+  border-color: #40a9ff;
+}
+
+.visualizer-input:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 通用按钮样式 */
+.visualizer-button {
+  padding: 4px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s;
+}
+
+.visualizer-button:hover {
+  border-color: #40a9ff;
+  color: #40a9ff;
+}
+
+.visualizer-button.active {
+  border-color: #1890ff;
+  color: #1890ff;
+  background: #e6f7ff;
+}
+
+/* 通用预览框样式 */
+.visualizer-preview {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 通用网格布局 */
+.visualizer-grid {
+  display: grid;
+  gap: 8px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .visualizer-container {
+    padding: 8px;
+  }
+  
+  .visualizer-input {
+    width: 40px;
+    padding: 2px 4px;
+  }
+}

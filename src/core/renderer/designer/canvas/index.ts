@@ -1,0 +1,5 @@
+export { default as CanvasToolbar } from './CanvasToolbar.vue'
+export { default as CanvasArea } from './CanvasArea.vue'
+export { default as SelectionOverlay } from './SelectionOverlay.vue'
+export { default as DesignerControlRenderer } from './DesignerControlRenderer.vue'
+export { default as AlignmentToolbar } from './AlignmentToolbar.vue'
