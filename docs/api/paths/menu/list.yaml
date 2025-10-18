@@ -1,0 +1,152 @@
+get:
+  tags:
+    - 菜单管理
+  summary: 查询菜单列表
+  description: |
+    根据条件查询菜单列表（非树形结构）。
+
+    **认证**: 需要Bearer Token + 权限: `menu:view`
+
+    **说明**:
+    - 返回扁平化的菜单列表
+    - 支持多种筛选条件
+    - 支持关键词搜索
+  operationId: listMenus
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: module
+      in: query
+      description: 按模块筛选
+      schema:
+        type: string
+        enum: [admin, designer, mobile, manager]
+      example: admin
+    - name: nodeType
+      in: query
+      description: 按节点类型筛选
+      schema:
+        type: integer
+        enum: [1, 2, 3]
+      example: 2
+    - name: parentId
+      in: query
+      description: 按父菜单ID筛选
+      schema:
+        type: integer
+      example: 1
+    - name: enabled
+      in: query
+      description: 按启用状态筛选
+      schema:
+        type: boolean
+      example: true
+    - name: visible
+      in: query
+      description: 按可见状态筛选
+      schema:
+        type: boolean
+      example: true
+    - name: keyword
+      in: query
+      description: 关键词搜索（菜单名称或编码）
+      schema:
+        type: string
+        maxLength: 50
+      example: 用户
+    - name: page
+      in: query
+      description: 页码
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    - name: pageSize
+      in: query
+      description: 每页数量
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  responses:
+    '200':
+      description: 查询成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '../../schemas/menu.yaml#/MenuResource'
+                      total:
+                        type: integer
+                        description: 总数量
+                        example: 50
+                      page:
+                        type: integer
+                        description: 当前页码
+                        example: 1
+                      pageSize:
+                        type: integer
+                        description: 每页数量
+                        example: 20
+          examples:
+            success:
+              summary: 查询成功
+              value:
+                success: true
+                code: 200
+                message: 查询成功
+                data:
+                  items:
+                    - id: 1
+                      parentId: null
+                      menuCode: dashboard
+                      name: 仪表板
+                      module: admin
+                      nodeType: 2
+                      sortOrder: 0
+                      url: /dashboard
+                      icon: dashboard
+                      path: /admin/dashboard
+                      enabled: true
+                      visible: true
+                      createdAt: '2024-01-01T00:00:00Z'
+                      updatedAt: '2024-01-01T00:00:00Z'
+                    - id: 2
+                      parentId: null
+                      menuCode: system
+                      name: 系统管理
+                      module: admin
+                      nodeType: 1
+                      sortOrder: 1
+                      icon: setting
+                      enabled: true
+                      visible: true
+                      createdAt: '2024-01-01T00:00:00Z'
+                      updatedAt: '2024-01-01T00:00:00Z'
+                  total: 50
+                  page: 1
+                  pageSize: 20
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

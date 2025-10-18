@@ -1,0 +1,133 @@
+get:
+  tags:
+    - 资源管理
+  summary: 获取资源列表
+  description: |
+    获取资源列表，支持分页、排序和筛选。
+
+    **认证**: 需要Bearer Token
+  operationId: getResourceList
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters.yaml#/PageParam'
+    - $ref: '../../components/parameters.yaml#/SizeParam'
+    - name: type
+      in: query
+      description: 资源类型
+      schema:
+        type: string
+        enum: [page, component, datasource]
+      example: page
+    - name: keyword
+      in: query
+      description: 搜索关键词
+      schema:
+        type: string
+      example: 首页
+    - name: sortBy
+      in: query
+      description: 排序字段
+      schema:
+        type: string
+        enum: [createdAt, updatedAt, name]
+        default: createdAt
+      example: createdAt
+    - name: sortOrder
+      in: query
+      description: 排序方向
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+      example: desc
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/resource.yaml#/ResourceListResponse'
+          examples:
+            success:
+              summary: 资源列表
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  items:
+                    - id: 1
+                      name: 首页
+                      type: page
+                      description: 系统首页
+                      config: { 'layout': 'default' }
+                      parentId: null
+                      createdAt: '2024-01-01T00:00:00Z'
+                      updatedAt: '2024-01-02T00:00:00Z'
+                      createdBy: 1001
+                      updatedBy: 1001
+                  pagination:
+                    total: 100
+                    page: 1
+                    size: 20
+                    totalPages: 5
+                    hasNext: true
+                    hasPrevious: false
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 资源管理
+  summary: 创建资源
+  description: |
+    创建新的资源。
+
+    **认证**: 需要Bearer Token + 权限: `resource:create`
+  operationId: createResource
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/resource.yaml#/ResourceCreateRequest'
+        examples:
+          page:
+            summary: 创建页面
+            value:
+              name: 首页
+              type: page
+              description: 系统首页
+              config: { 'layout': 'default' }
+              parentId: null
+  responses:
+    '200':
+      description: 创建成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '../../schemas/resource.yaml#/Resource'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

@@ -1,0 +1,322 @@
+get:
+  tags:
+    - 数据源
+  summary: 获取数据绑定列表
+  description: |
+    获取组件的数据绑定列表。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 可以按组件ID筛选
+    - 可以按查询ID筛选
+  operationId: getDataBindings
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: componentId
+      in: query
+      required: false
+      description: 组件ID
+      schema:
+        type: string
+      example: comp_table_001
+    - name: queryId
+      in: query
+      required: false
+      description: 查询ID
+      schema:
+        type: string
+      example: query_001
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '../../schemas/datasource.yaml#/DataBinding'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 数据源
+  summary: 创建数据绑定
+  description: |
+    创建组件与数据查询的绑定关系。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 绑定后组件会自动获取数据
+    - 支持字段映射
+    - 支持数据过滤
+    - 支持自动刷新
+  operationId: createDataBinding
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - componentId
+            - queryId
+            - propertyPath
+          properties:
+            componentId:
+              type: string
+              description: 组件ID
+              example: comp_table_001
+            queryId:
+              type: string
+              description: 查询ID
+              example: query_001
+            bindingType:
+              type: string
+              description: 绑定类型
+              enum: [data, event, computed]
+              default: data
+              example: data
+            propertyPath:
+              type: string
+              description: 属性路径
+              example: dataSource
+            mapping:
+              type: object
+              nullable: true
+              description: 字段映射
+              additionalProperties:
+                type: string
+              example:
+                id: userId
+                name: userName
+            filters:
+              type: array
+              nullable: true
+              description: 过滤器
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    example: status
+                  operator:
+                    type: string
+                    enum: [eq, ne, gt, lt, gte, lte, like, in, between]
+                    example: eq
+                  value:
+                    description: 过滤值
+                    example: active
+            autoRefresh:
+              type: boolean
+              description: 是否自动刷新
+              default: false
+              example: false
+            refreshInterval:
+              type: integer
+              nullable: true
+              description: 刷新间隔（秒）
+              minimum: 5
+              maximum: 3600
+              example: 60
+        examples:
+          simpleBinding:
+            summary: 简单绑定
+            value:
+              componentId: comp_table_001
+              queryId: query_001
+              bindingType: data
+              propertyPath: dataSource
+          withMapping:
+            summary: 带字段映射
+            value:
+              componentId: comp_table_001
+              queryId: query_001
+              bindingType: data
+              propertyPath: dataSource
+              mapping:
+                id: userId
+                name: userName
+                email: userEmail
+          withFilters:
+            summary: 带过滤器
+            value:
+              componentId: comp_table_001
+              queryId: query_001
+              bindingType: data
+              propertyPath: dataSource
+              filters:
+                - field: status
+                  operator: eq
+                  value: active
+                - field: age
+                  operator: gte
+                  value: 18
+          autoRefresh:
+            summary: 自动刷新
+            value:
+              componentId: comp_table_001
+              queryId: query_001
+              bindingType: data
+              propertyPath: dataSource
+              autoRefresh: true
+              refreshInterval: 60
+  responses:
+    '201':
+      description: 创建成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/datasource.yaml#/DataBindingResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 组件或查询不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 数据源
+  summary: 更新数据绑定
+  description: |
+    更新数据绑定配置。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持部分更新
+    - 更新后会重新加载数据
+  operationId: updateDataBinding
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - id
+          properties:
+            id:
+              type: string
+              description: 绑定ID
+              example: binding_001
+            mapping:
+              type: object
+              nullable: true
+              description: 字段映射
+              additionalProperties:
+                type: string
+            filters:
+              type: array
+              nullable: true
+              description: 过滤器
+              items:
+                type: object
+            autoRefresh:
+              type: boolean
+              description: 是否自动刷新
+              example: false
+            refreshInterval:
+              type: integer
+              nullable: true
+              description: 刷新间隔（秒）
+              example: 60
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/datasource.yaml#/DataBindingResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 绑定不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 数据源
+  summary: 删除数据绑定
+  description: |
+    删除数据绑定。
+
+    **认证**: 需要Bearer Token
+  operationId: deleteDataBinding
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: query
+      required: true
+      description: 绑定ID
+      schema:
+        type: string
+      example: binding_001
+  responses:
+    '200':
+      description: 删除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    nullable: true
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 绑定不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

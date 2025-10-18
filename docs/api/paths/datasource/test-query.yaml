@@ -1,0 +1,179 @@
+post:
+  tags:
+    - 数据源
+  summary: 测试数据查询
+  description: |
+    测试数据查询是否正常执行。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 可以测试已保存的查询
+    - 也可以测试新的查询语句
+    - 返回查询结果预览（最多10条）
+  operationId: testDataQuery
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - dataSourceId
+          properties:
+            dataSourceId:
+              type: string
+              description: 数据源ID
+              example: ds_mysql_001
+            queryId:
+              type: string
+              nullable: true
+              description: 查询ID（测试已保存的查询）
+              example: query_001
+            query:
+              type: string
+              nullable: true
+              description: 查询语句（测试新查询）
+              example: SELECT * FROM users LIMIT 10
+            parameters:
+              type: object
+              nullable: true
+              description: 查询参数
+              additionalProperties: true
+              example:
+                status: active
+                limit: 10
+        examples:
+          testExistingQuery:
+            summary: 测试已保存的查询
+            value:
+              dataSourceId: ds_mysql_001
+              queryId: query_001
+              parameters:
+                status: active
+                limit: 10
+          testNewQuery:
+            summary: 测试新查询
+            value:
+              dataSourceId: ds_mysql_001
+              query: SELECT * FROM users WHERE status = 'active' LIMIT 10
+  responses:
+    '200':
+      description: 测试完成
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        description: 是否执行成功
+                        example: true
+                      rows:
+                        type: array
+                        description: 查询结果（最多10条）
+                        items:
+                          type: object
+                        example:
+                          - id: 1
+                            name: 张三
+                            email: zhangsan@example.com
+                          - id: 2
+                            name: 李四
+                            email: lisi@example.com
+                      rowCount:
+                        type: integer
+                        description: 返回行数
+                        example: 2
+                      executionTime:
+                        type: integer
+                        description: 执行时间（毫秒）
+                        example: 45
+                      columns:
+                        type: array
+                        description: 列信息
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: id
+                            type:
+                              type: string
+                              example: int
+                        example:
+                          - name: id
+                            type: int
+                          - name: name
+                            type: varchar
+                          - name: email
+                            type: varchar
+                      error:
+                        type: string
+                        nullable: true
+                        description: 错误信息
+                        example: null
+          examples:
+            success:
+              summary: 查询成功
+              value:
+                success: true
+                code: 200
+                message: 测试完成
+                data:
+                  success: true
+                  rows:
+                    - id: 1
+                      name: 张三
+                      email: zhangsan@example.com
+                    - id: 2
+                      name: 李四
+                      email: lisi@example.com
+                  rowCount: 2
+                  executionTime: 45
+                  columns:
+                    - name: id
+                      type: int
+                    - name: name
+                      type: varchar
+                    - name: email
+                      type: varchar
+                  error: null
+            failure:
+              summary: 查询失败
+              value:
+                success: true
+                code: 200
+                message: 测试完成
+                data:
+                  success: false
+                  rows: []
+                  rowCount: 0
+                  executionTime: 0
+                  columns: []
+                  error: 'SQL syntax error: Unknown column "invalid_column" in field list'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 数据源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

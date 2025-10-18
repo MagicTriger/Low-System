@@ -1,0 +1,25 @@
+# 可复用示例
+
+SuccessExample:
+  summary: 操作成功
+  value:
+    success: true
+    code: 200
+    message: 操作成功
+
+ErrorExample:
+  summary: 操作失败
+  value:
+    success: false
+    code: 400
+    message: 操作失败
+
+PaginationExample:
+  summary: 分页数据
+  value:
+    total: 100
+    page: 1
+    size: 20
+    totalPages: 5
+    hasNext: true
+    hasPrevious: false

@@ -1,0 +1,314 @@
+post:
+  tags:
+    - 配置管理
+  summary: 验证配置
+  description: |
+    验证配置值是否符合规则。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 验证单个或多个配置
+    - 返回详细的验证结果
+    - 不会实际更新配置
+    - 支持自定义验证规则
+  operationId: validateConfig
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - configs
+          properties:
+            configs:
+              type: object
+              description: 要验证的配置键值对
+              additionalProperties: true
+              example:
+                app.theme: dark
+                app.port: 3000
+                app.debug: true
+            scope:
+              type: string
+              description: 配置作用域
+              enum: [global, user, workspace, session]
+              default: user
+              example: user
+        examples:
+          validateSingle:
+            summary: 验证单个配置
+            value:
+              configs:
+                app.theme: dark
+              scope: user
+          validateMultiple:
+            summary: 验证多个配置
+            value:
+              configs:
+                app.theme: dark
+                app.port: 3000
+                app.debug: true
+                app.language: en
+              scope: user
+  responses:
+    '200':
+      description: 验证完成
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigValidationResponse'
+          examples:
+            allValid:
+              summary: 全部有效
+              value:
+                success: true
+                code: 200
+                message: 验证完成
+                data:
+                  valid: true
+                  errors: []
+                  warnings: []
+            hasErrors:
+              summary: 存在错误
+              value:
+                success: true
+                code: 200
+                message: 验证完成
+                data:
+                  valid: false
+                  errors:
+                    - key: app.port
+                      message: Port must be between 1 and 65535
+                      code: INVALID_VALUE
+                    - key: app.theme
+                      message: Theme must be one of [light, dark, auto]
+                      code: INVALID_ENUM
+                  warnings:
+                    - key: app.debug
+                      message: Debug mode is enabled in production
+            hasWarnings:
+              summary: 存在警告
+              value:
+                success: true
+                code: 200
+                message: 验证完成
+                data:
+                  valid: true
+                  errors: []
+                  warnings:
+                    - key: app.debug
+                      message: Debug mode is enabled in production
+                    - key: app.maxConnections
+                      message: Value is higher than recommended (1000)
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+get:
+  tags:
+    - 配置管理
+  summary: 获取验证规则
+  description: |
+    获取配置的验证规则。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回配置的所有验证规则
+    - 包括类型、范围、枚举等
+  operationId: getValidationRules
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: key
+      in: query
+      required: true
+      description: 配置键
+      schema:
+        type: string
+      example: app.theme
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        example: app.theme
+                      type:
+                        type: string
+                        example: string
+                      validation:
+                        type: object
+                        properties:
+                          required:
+                            type: boolean
+                            example: false
+                          pattern:
+                            type: string
+                            example: ^[a-z]+$
+                          min:
+                            type: number
+                            example: 0
+                          max:
+                            type: number
+                            example: 100
+                          enum:
+                            type: array
+                            items:
+                              type: string
+                            example: [light, dark, auto]
+                          custom:
+                            type: array
+                            description: 自定义验证规则
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                  example: productionSafe
+                                description:
+                                  type: string
+                                  example: Ensure value is safe for production
+          examples:
+            success:
+              summary: 验证规则
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  key: app.theme
+                  type: string
+                  validation:
+                    required: false
+                    enum: [light, dark, auto]
+                    custom:
+                      - name: productionSafe
+                        description: Ensure theme is appropriate for production
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 配置不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 配置管理
+  summary: 更新验证规则
+  description: |
+    更新配置的验证规则。
+
+    **认证**: 需要Bearer Token
+
+    **权限**: 需要管理员权限
+
+    **说明**:
+    - 只有管理员可以更新验证规则
+    - 更新后立即生效
+    - 不影响已有配置值
+  operationId: updateValidationRules
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - key
+            - validation
+          properties:
+            key:
+              type: string
+              description: 配置键
+              example: app.theme
+            validation:
+              type: object
+              description: 验证规则
+              properties:
+                required:
+                  type: boolean
+                  example: false
+                pattern:
+                  type: string
+                  example: ^[a-z]+$
+                min:
+                  type: number
+                  example: 0
+                max:
+                  type: number
+                  example: 100
+                enum:
+                  type: array
+                  items:
+                    type: string
+                  example: [light, dark, auto]
+        examples:
+          updateRules:
+            summary: 更新规则
+            value:
+              key: app.theme
+              validation:
+                required: false
+                enum: [light, dark, auto, system]
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/SuccessResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 配置不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

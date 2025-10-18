@@ -1,0 +1,156 @@
+post:
+  tags:
+    - 数据源
+  summary: 执行数据查询
+  description: |
+    执行数据查询并返回结果。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 执行已保存的查询
+    - 支持参数化查询
+    - 支持数据转换
+    - 支持缓存
+  operationId: executeDataQuery
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - queryId
+          properties:
+            queryId:
+              type: string
+              description: 查询ID
+              example: query_001
+            parameters:
+              type: object
+              nullable: true
+              description: 查询参数
+              additionalProperties: true
+              example:
+                status: active
+                limit: 20
+                offset: 0
+            useCache:
+              type: boolean
+              description: 是否使用缓存
+              default: true
+              example: true
+            timeout:
+              type: integer
+              nullable: true
+              description: 超时时间（毫秒）
+              minimum: 1000
+              maximum: 60000
+              example: 30000
+        examples:
+          simpleQuery:
+            summary: 简单查询
+            value:
+              queryId: query_001
+              parameters:
+                status: active
+                limit: 20
+                offset: 0
+          withoutCache:
+            summary: 不使用缓存
+            value:
+              queryId: query_001
+              parameters:
+                status: active
+              useCache: false
+  responses:
+    '200':
+      description: 执行成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '../../schemas/datasource.yaml#/ExecutionResult'
+          examples:
+            success:
+              summary: 查询成功
+              value:
+                success: true
+                code: 200
+                message: 执行成功
+                data:
+                  success: true
+                  data:
+                    - id: 1
+                      name: 张三
+                      email: zhangsan@example.com
+                      status: active
+                    - id: 2
+                      name: 李四
+                      email: lisi@example.com
+                      status: active
+                  rowCount: 2
+                  executionTime: 125
+                  cached: false
+                  error: null
+            cached:
+              summary: 缓存结果
+              value:
+                success: true
+                code: 200
+                message: 执行成功
+                data:
+                  success: true
+                  data:
+                    - id: 1
+                      name: 张三
+                      email: zhangsan@example.com
+                  rowCount: 1
+                  executionTime: 5
+                  cached: true
+                  error: null
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 查询不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '500':
+      description: 执行失败
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/ErrorResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      query:
+                        type: string
+                        description: 执行的查询语句
+                      parameters:
+                        type: object
+                        description: 查询参数
+                      error:
+                        type: string
+                        description: 错误详情

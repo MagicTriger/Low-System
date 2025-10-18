@@ -1,0 +1,220 @@
+# 资源管理数据模型
+
+Resource:
+  type: object
+  properties:
+    id:
+      type: integer
+      description: 资源ID
+      example: 1
+    name:
+      type: string
+      description: 资源名称
+      example: 首页
+      minLength: 1
+      maxLength: 100
+    type:
+      type: string
+      description: 资源类型
+      enum: [page, component, datasource]
+      example: page
+    description:
+      type: string
+      description: 资源描述
+      example: 系统首页
+      maxLength: 500
+    config:
+      type: object
+      description: 资源配置（JSON）
+      example: { 'layout': 'default' }
+    parentId:
+      type: integer
+      nullable: true
+      description: 父资源ID
+      example: null
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+      example: '2024-01-02T00:00:00Z'
+    createdBy:
+      type: integer
+      description: 创建人ID
+      example: 1001
+    updatedBy:
+      type: integer
+      description: 更新人ID
+      example: 1001
+
+ResourceCreateRequest:
+  type: object
+  required:
+    - name
+    - type
+  properties:
+    name:
+      type: string
+      description: 资源名称
+      minLength: 1
+      maxLength: 100
+    type:
+      type: string
+      description: 资源类型
+      enum: [page, component, datasource]
+    description:
+      type: string
+      description: 资源描述
+      maxLength: 500
+    config:
+      type: object
+      description: 资源配置（JSON）
+    parentId:
+      type: integer
+      nullable: true
+      description: 父资源ID
+
+ResourceUpdateRequest:
+  allOf:
+    - $ref: '#/ResourceCreateRequest'
+
+ResourceQueryParams:
+  type: object
+  description: 资源查询参数
+  properties:
+    type:
+      type: string
+      description: 资源类型筛选
+      enum: [page, component, datasource]
+      example: page
+    keyword:
+      type: string
+      description: 关键词搜索（名称或描述）
+      example: 首页
+      maxLength: 100
+    parentId:
+      type: integer
+      nullable: true
+      description: 父资源ID筛选
+      example: null
+    createdBy:
+      type: integer
+      description: 创建人ID筛选
+      example: 1001
+    sortBy:
+      type: string
+      description: 排序字段
+      enum: [createdAt, updatedAt, name, id]
+      default: createdAt
+      example: createdAt
+    sortOrder:
+      type: string
+      description: 排序方向
+      enum: [asc, desc]
+      default: desc
+      example: desc
+    page:
+      type: integer
+      description: 页码
+      minimum: 1
+      default: 1
+      example: 1
+    pageSize:
+      type: integer
+      description: 每页数量
+      minimum: 1
+      maximum: 100
+      default: 20
+      example: 20
+
+ResourcePageResult:
+  type: object
+  description: 资源分页结果
+  properties:
+    items:
+      type: array
+      description: 资源列表
+      items:
+        $ref: '#/Resource'
+    total:
+      type: integer
+      description: 总数量
+      example: 100
+    page:
+      type: integer
+      description: 当前页码
+      example: 1
+    pageSize:
+      type: integer
+      description: 每页数量
+      example: 20
+    totalPages:
+      type: integer
+      description: 总页数
+      example: 5
+    hasNext:
+      type: boolean
+      description: 是否有下一页
+      example: true
+    hasPrevious:
+      type: boolean
+      description: 是否有上一页
+      example: false
+
+ResourceListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/ResourcePageResult'
+
+ResourceDetailResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/Resource'
+
+ResourceTreeNode:
+  type: object
+  description: 资源树节点
+  properties:
+    id:
+      type: integer
+      description: 资源ID
+      example: 1
+    name:
+      type: string
+      description: 资源名称
+      example: 首页
+    type:
+      type: string
+      description: 资源类型
+      enum: [page, component, datasource]
+      example: page
+    parentId:
+      type: integer
+      nullable: true
+      description: 父资源ID
+      example: null
+    children:
+      type: array
+      description: 子资源列表
+      items:
+        $ref: '#/ResourceTreeNode'
+
+ResourceTreeResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/ResourceTreeNode'

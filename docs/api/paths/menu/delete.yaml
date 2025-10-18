@@ -1,0 +1,51 @@
+delete:
+  tags:
+    - 菜单管理
+  summary: 删除菜单
+  description: |
+    删除指定的菜单项。如果菜单有子菜单，需要先删除子菜单。
+
+    **认证**: 需要Bearer Token + 权限: `menu:delete`
+  operationId: deleteMenu
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: 菜单ID
+      schema:
+        type: integer
+      example: 1
+  responses:
+    '200':
+      description: 删除成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/SuccessResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 菜单不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '409':
+      description: 菜单有子菜单，无法删除
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            hasChildren:
+              summary: 有子菜单
+              value:
+                success: false
+                code: 409
+                message: 该菜单有子菜单，请先删除子菜单

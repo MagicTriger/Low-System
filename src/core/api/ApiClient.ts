@@ -521,22 +521,59 @@ export class ApiClient implements IApiClient {
    * 解析响应数据
    */
   private async parseResponse<T>(response: Response, responseType?: string): Promise<T> {
-    switch (responseType) {
-      case 'json':
-        return response.json()
-      case 'text':
-        return response.text() as any
-      case 'blob':
-        return response.blob() as any
-      case 'arraybuffer':
-        return response.arrayBuffer() as any
-      default:
-        // 根据Content-Type自动判断
-        const contentType = response.headers.get('content-type')
-        if (contentType?.includes('application/json')) {
-          return response.json()
-        }
-        return response.text() as any
+    const contentType = response.headers.get('content-type') || ''
+    console.log('[ApiClient] 解析响应 - Status:', response.status, 'Content-Type:', contentType, 'responseType:', responseType)
+
+    try {
+      switch (responseType) {
+        case 'json':
+          return await response.json()
+        case 'text':
+          return (await response.text()) as any
+        case 'blob':
+          return (await response.blob()) as any
+        case 'arraybuffer':
+          return (await response.arrayBuffer()) as any
+        default:
+          // 根据Content-Type自动判断
+          if (contentType.includes('application/json')) {
+            const text = await response.text()
+            console.log('[ApiClient] 响应文本内容:', text.substring(0, 200))
+
+            if (!text || text.trim() === '') {
+              console.warn('[ApiClient] 响应为空，返回默认对象')
+              return {} as T
+            }
+
+            try {
+              return JSON.parse(text)
+            } catch (jsonError) {
+              console.error('[ApiClient] JSON解析失败:', jsonError, '原始文本:', text.substring(0, 100))
+              throw new Error(`JSON解析失败: ${text.substring(0, 100)}...`)
+            }
+          } else if (contentType.includes('text/')) {
+            return (await response.text()) as any
+          } else {
+            // 对于其他类型，尝试读取文本
+            const text = await response.text()
+            console.warn('[ApiClient] 未知Content-Type，返回文本:', text.substring(0, 100))
+            return text as any
+          }
+      }
+    } catch (error: any) {
+      console.error('[ApiClient] 解析响应失败:', error)
+      console.error('[ApiClient] 响应状态:', response.status)
+      console.error('[ApiClient] 响应头:', Object.fromEntries(response.headers.entries()))
+
+      // 尝试读取响应文本用于调试
+      try {
+        const text = await response.clone().text()
+        console.error('[ApiClient] 响应原始内容:', text.substring(0, 500))
+      } catch (textError) {
+        console.error('[ApiClient] 无法读取响应文本:', textError)
+      }
+
+      throw error
     }
   }
 

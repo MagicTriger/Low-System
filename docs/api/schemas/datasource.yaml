@@ -1,0 +1,557 @@
+# 数据源相关数据模型
+
+DataSource:
+  type: object
+  description: 数据源
+  required:
+    - id
+    - name
+    - type
+    - config
+  properties:
+    id:
+      type: string
+      description: 数据源ID
+      example: ds_mysql_001
+    name:
+      type: string
+      description: 数据源名称
+      maxLength: 100
+      example: 用户数据库
+    type:
+      type: string
+      description: 数据源类型
+      enum: [mysql, postgresql, mongodb, redis, http, graphql, rest]
+      example: mysql
+    description:
+      type: string
+      nullable: true
+      description: 数据源描述
+      maxLength: 500
+      example: 主用户数据库，包含用户信息和权限数据
+    config:
+      $ref: '#/DataSourceConfig'
+    status:
+      type: string
+      description: 数据源状态
+      enum: [active, inactive, error]
+      default: active
+      example: active
+    enabled:
+      type: boolean
+      description: 是否启用
+      default: true
+      example: true
+    tags:
+      type: array
+      nullable: true
+      description: 标签
+      items:
+        type: string
+      example: ['用户', '核心数据库']
+    createdBy:
+      type: string
+      description: 创建人ID
+      example: user_001
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+      example: '2024-01-01T00:00:00Z'
+    lastTestedAt:
+      type: string
+      format: date-time
+      nullable: true
+      description: 最后测试时间
+      example: '2024-01-01T12:00:00Z'
+
+DataSourceConfig:
+  type: object
+  description: 数据源配置
+  properties:
+    # 数据库配置
+    host:
+      type: string
+      nullable: true
+      description: 主机地址
+      example: localhost
+    port:
+      type: integer
+      nullable: true
+      description: 端口号
+      minimum: 1
+      maximum: 65535
+      example: 3306
+    database:
+      type: string
+      nullable: true
+      description: 数据库名称
+      example: user_db
+    username:
+      type: string
+      nullable: true
+      description: 用户名
+      example: root
+    password:
+      type: string
+      nullable: true
+      description: 密码（加密存储）
+      example: '******'
+    # HTTP/REST配置
+    baseUrl:
+      type: string
+      nullable: true
+      description: 基础URL
+      example: https://api.example.com
+    headers:
+      type: object
+      nullable: true
+      description: 请求头
+      additionalProperties:
+        type: string
+      example:
+        Authorization: Bearer token123
+        Content-Type: application/json
+    timeout:
+      type: integer
+      nullable: true
+      description: 超时时间（毫秒）
+      minimum: 1000
+      maximum: 60000
+      default: 30000
+      example: 30000
+    # 连接池配置
+    poolSize:
+      type: integer
+      nullable: true
+      description: 连接池大小
+      minimum: 1
+      maximum: 100
+      default: 10
+      example: 10
+    maxRetries:
+      type: integer
+      nullable: true
+      description: 最大重试次数
+      minimum: 0
+      maximum: 10
+      default: 3
+      example: 3
+    # SSL配置
+    ssl:
+      type: boolean
+      nullable: true
+      description: 是否使用SSL
+      default: false
+      example: false
+    # 其他配置
+    options:
+      type: object
+      nullable: true
+      description: 其他配置项
+      additionalProperties: true
+
+DataQuery:
+  type: object
+  description: 数据查询
+  required:
+    - id
+    - name
+    - dataSourceId
+    - query
+  properties:
+    id:
+      type: string
+      description: 查询ID
+      example: query_001
+    name:
+      type: string
+      description: 查询名称
+      maxLength: 100
+      example: 获取用户列表
+    description:
+      type: string
+      nullable: true
+      description: 查询描述
+      maxLength: 500
+      example: 分页获取用户列表，支持搜索和过滤
+    dataSourceId:
+      type: string
+      description: 数据源ID
+      example: ds_mysql_001
+    query:
+      type: string
+      description: 查询语句
+      example: SELECT * FROM users WHERE status = {{status}} LIMIT {{limit}} OFFSET {{offset}}
+    queryType:
+      type: string
+      description: 查询类型
+      enum: [select, insert, update, delete, procedure]
+      default: select
+      example: select
+    parameters:
+      type: array
+      nullable: true
+      description: 查询参数定义
+      items:
+        $ref: '#/QueryParameter'
+    transformScript:
+      type: string
+      nullable: true
+      description: 数据转换脚本（JavaScript）
+      example: |
+        return data.map(item => ({
+          id: item.id,
+          name: item.username,
+          email: item.email
+        }));
+    cacheEnabled:
+      type: boolean
+      description: 是否启用缓存
+      default: false
+      example: false
+    cacheTTL:
+      type: integer
+      nullable: true
+      description: 缓存过期时间（秒）
+      minimum: 60
+      maximum: 86400
+      example: 300
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+      example: '2024-01-01T00:00:00Z'
+
+QueryParameter:
+  type: object
+  description: 查询参数
+  required:
+    - name
+    - type
+  properties:
+    name:
+      type: string
+      description: 参数名称
+      example: status
+    type:
+      type: string
+      description: 参数类型
+      enum: [string, number, boolean, date, array, object]
+      example: string
+    required:
+      type: boolean
+      description: 是否必填
+      default: false
+      example: false
+    defaultValue:
+      description: 默认值
+      example: active
+    description:
+      type: string
+      nullable: true
+      description: 参数描述
+      example: 用户状态
+    validation:
+      type: object
+      nullable: true
+      description: 验证规则
+      properties:
+        min:
+          type: number
+          nullable: true
+          description: 最小值
+        max:
+          type: number
+          nullable: true
+          description: 最大值
+        pattern:
+          type: string
+          nullable: true
+          description: 正则表达式
+        enum:
+          type: array
+          nullable: true
+          description: 枚举值
+          items:
+            type: string
+
+DataBinding:
+  type: object
+  description: 数据绑定
+  required:
+    - id
+    - componentId
+    - queryId
+  properties:
+    id:
+      type: string
+      description: 绑定ID
+      example: binding_001
+    componentId:
+      type: string
+      description: 组件ID
+      example: comp_table_001
+    queryId:
+      type: string
+      description: 查询ID
+      example: query_001
+    bindingType:
+      type: string
+      description: 绑定类型
+      enum: [data, event, computed]
+      default: data
+      example: data
+    propertyPath:
+      type: string
+      description: 属性路径
+      example: dataSource
+    mapping:
+      type: object
+      nullable: true
+      description: 字段映射
+      additionalProperties:
+        type: string
+      example:
+        id: userId
+        name: userName
+    filters:
+      type: array
+      nullable: true
+      description: 过滤器
+      items:
+        type: object
+        properties:
+          field:
+            type: string
+          operator:
+            type: string
+            enum: [eq, ne, gt, lt, gte, lte, like, in, between]
+          value:
+            description: 过滤值
+    autoRefresh:
+      type: boolean
+      description: 是否自动刷新
+      default: false
+      example: false
+    refreshInterval:
+      type: integer
+      nullable: true
+      description: 刷新间隔（秒）
+      minimum: 5
+      maximum: 3600
+      example: 60
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+
+DataFlow:
+  type: object
+  description: 数据流
+  required:
+    - id
+    - name
+    - nodes
+  properties:
+    id:
+      type: string
+      description: 数据流ID
+      example: flow_001
+    name:
+      type: string
+      description: 数据流名称
+      maxLength: 100
+      example: 用户数据处理流程
+    description:
+      type: string
+      nullable: true
+      description: 数据流描述
+      maxLength: 500
+      example: 从多个数据源获取用户数据，进行清洗和转换
+    nodes:
+      type: array
+      description: 数据流节点
+      items:
+        $ref: '#/DataFlowNode'
+    edges:
+      type: array
+      description: 数据流连接
+      items:
+        $ref: '#/DataFlowEdge'
+    enabled:
+      type: boolean
+      description: 是否启用
+      default: true
+      example: true
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+      example: '2024-01-01T00:00:00Z'
+
+DataFlowNode:
+  type: object
+  description: 数据流节点
+  required:
+    - id
+    - type
+  properties:
+    id:
+      type: string
+      description: 节点ID
+      example: node_001
+    type:
+      type: string
+      description: 节点类型
+      enum: [source, transform, filter, aggregate, join, output]
+      example: source
+    name:
+      type: string
+      description: 节点名称
+      example: 用户数据源
+    config:
+      type: object
+      description: 节点配置
+      additionalProperties: true
+    position:
+      type: object
+      description: 节点位置
+      properties:
+        x:
+          type: number
+          example: 100
+        y:
+          type: number
+          example: 50
+
+DataFlowEdge:
+  type: object
+  description: 数据流连接
+  required:
+    - id
+    - source
+    - target
+  properties:
+    id:
+      type: string
+      description: 连接ID
+      example: edge_001
+    source:
+      type: string
+      description: 源节点ID
+      example: node_001
+    target:
+      type: string
+      description: 目标节点ID
+      example: node_002
+    label:
+      type: string
+      nullable: true
+      description: 连接标签
+      example: 用户数据
+
+ExecutionResult:
+  type: object
+  description: 执行结果
+  properties:
+    success:
+      type: boolean
+      description: 是否成功
+      example: true
+    data:
+      description: 返回数据
+      example:
+        - id: 1
+          name: 张三
+          email: zhangsan@example.com
+        - id: 2
+          name: 李四
+          email: lisi@example.com
+    rowCount:
+      type: integer
+      nullable: true
+      description: 影响行数
+      example: 2
+    executionTime:
+      type: integer
+      description: 执行时间（毫秒）
+      example: 125
+    cached:
+      type: boolean
+      description: 是否来自缓存
+      default: false
+      example: false
+    error:
+      type: string
+      nullable: true
+      description: 错误信息
+      example: null
+
+# 请求和响应模型
+
+DataSourceResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/DataSource'
+
+DataSourceListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/DataSource'
+
+DataQueryResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/DataQuery'
+
+DataBindingResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/DataBinding'
+
+DataFlowResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/DataFlow'
+
+ExecutionResultResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/ExecutionResult'

@@ -1,0 +1,345 @@
+post:
+  tags:
+    - 状态管理
+  summary: 订阅状态变化
+  description: |
+    订阅状态变化通知。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持订阅整个模块或特定路径
+    - 支持通配符匹配
+    - 可配置深度监听
+    - 返回订阅ID用于取消订阅
+  operationId: subscribeState
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - namespace
+            - callback
+          properties:
+            namespace:
+              type: string
+              description: 命名空间（支持通配符）
+              example: user.*
+            path:
+              type: string
+              nullable: true
+              description: 监听的状态路径
+              example: currentUser.name
+            callback:
+              type: string
+              description: 回调函数标识或WebHook URL
+              example: onUserChange
+            immediate:
+              type: boolean
+              description: 是否立即执行
+              default: false
+              example: false
+            deep:
+              type: boolean
+              description: 是否深度监听
+              default: false
+              example: true
+            filter:
+              type: string
+              nullable: true
+              description: 过滤条件（JavaScript表达式）
+              example: newValue !== oldValue
+        examples:
+          subscribeModule:
+            summary: 订阅整个模块
+            value:
+              namespace: user
+              callback: onUserStateChange
+              immediate: false
+              deep: true
+          subscribePath:
+            summary: 订阅特定路径
+            value:
+              namespace: user
+              path: currentUser.name
+              callback: onUserNameChange
+              immediate: true
+              deep: false
+              filter: newValue !== oldValue
+          subscribeWildcard:
+            summary: 通配符订阅
+            value:
+              namespace: user.*
+              callback: onAnyUserModuleChange
+              deep: true
+  responses:
+    '201':
+      description: 订阅成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateSubscriptionResponse'
+          examples:
+            success:
+              summary: 订阅成功
+              value:
+                success: true
+                code: 201
+                message: 订阅成功
+                data:
+                  id: sub_001
+                  namespace: user
+                  path: currentUser.name
+                  callback: onUserNameChange
+                  immediate: true
+                  deep: false
+                  filter: newValue !== oldValue
+                  createdAt: '2024-01-01T12:00:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 状态管理
+  summary: 取消订阅
+  description: |
+    取消状态变化订阅。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 使用订阅ID取消订阅
+    - 取消后不再接收通知
+  operationId: unsubscribeState
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: query
+      required: true
+      description: 订阅ID
+      schema:
+        type: string
+      example: sub_001
+  responses:
+    '200':
+      description: 取消成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    nullable: true
+          examples:
+            success:
+              summary: 取消成功
+              value:
+                success: true
+                code: 200
+                message: 取消订阅成功
+                data: null
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 订阅不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+get:
+  tags:
+    - 状态管理
+  summary: 获取订阅列表
+  description: |
+    获取当前用户的所有订阅。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回所有活跃订阅
+    - 可按命名空间筛选
+  operationId: getSubscriptions
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: namespace
+      in: query
+      required: false
+      description: 命名空间筛选
+      schema:
+        type: string
+      example: user
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '../../schemas/state.yaml#/StateSubscription'
+          examples:
+            success:
+              summary: 订阅列表
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - id: sub_001
+                    namespace: user
+                    path: currentUser.name
+                    callback: onUserNameChange
+                    immediate: true
+                    deep: false
+                    createdAt: '2024-01-01T12:00:00Z'
+                  - id: sub_002
+                    namespace: user
+                    callback: onUserStateChange
+                    immediate: false
+                    deep: true
+                    createdAt: '2024-01-01T12:05:00Z'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 状态管理
+  summary: 获取状态历史
+  description: |
+    获取状态变化历史记录。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回mutation和action历史
+    - 包含状态快照
+    - 支持时间范围筛选
+  operationId: getStateHistory
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: namespace
+      in: query
+      required: true
+      description: 命名空间
+      schema:
+        type: string
+      example: user
+    - name: limit
+      in: query
+      required: false
+      description: 返回数量限制
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      example: 20
+    - name: from
+      in: query
+      required: false
+      description: 开始时间
+      schema:
+        type: string
+        format: date-time
+      example: '2024-01-01T00:00:00Z'
+    - name: to
+      in: query
+      required: false
+      description: 结束时间
+      schema:
+        type: string
+        format: date-time
+      example: '2024-01-01T23:59:59Z'
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateHistoryResponse'
+          examples:
+            success:
+              summary: 历史记录
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  namespace: user
+                  entries:
+                    - timestamp: '2024-01-01T12:00:00Z'
+                      type: mutation
+                      name: SET_USER
+                      payload:
+                        id: user_001
+                        name: 张三
+                      stateBefore:
+                        currentUser: null
+                        isLoggedIn: false
+                      stateAfter:
+                        currentUser:
+                          id: user_001
+                          name: 张三
+                        isLoggedIn: true
+                    - timestamp: '2024-01-01T12:05:00Z'
+                      type: action
+                      name: fetchPermissions
+                      payload: null
+                      stateBefore:
+                        permissions: []
+                      stateAfter:
+                        permissions: ['read', 'write']
+                  maxSize: 50
+                  currentIndex: 2
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

@@ -1,0 +1,223 @@
+get:
+  tags:
+    - 设计器
+  summary: 获取组件树
+  description: |
+    获取画布的组件树结构。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回层级化的组件树结构
+    - 包含每个组件的基本信息
+    - 用于大纲树面板显示
+  operationId: getComponentTree
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: canvasId
+      in: query
+      required: true
+      description: 画布ID
+      schema:
+        type: string
+      example: canvas_123456
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '../../schemas/designer.yaml#/ComponentInstance'
+          examples:
+            success:
+              summary: 组件树结构
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - id: comp_container_001
+                    type: container
+                    name: 主容器
+                    position:
+                      x: 0
+                      y: 0
+                    size:
+                      width: 1200
+                      height: 800
+                    visible: true
+                    locked: false
+                    children:
+                      - id: comp_button_001
+                        type: button
+                        name: 提交按钮
+                        position:
+                          x: 100
+                          y: 50
+                        size:
+                          width: 120
+                          height: 40
+                        visible: true
+                        locked: false
+                        parentId: comp_container_001
+                      - id: comp_input_001
+                        type: input
+                        name: 用户名输入框
+                        position:
+                          x: 100
+                          y: 100
+                        size:
+                          width: 200
+                          height: 32
+                        visible: true
+                        locked: false
+                        parentId: comp_container_001
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 画布不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 设计器
+  summary: 组件树操作
+  description: |
+    对组件树进行操作（移动、复制、粘贴等）。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持拖拽移动组件
+    - 支持复制粘贴组件
+    - 支持调整组件层级
+  operationId: manipulateComponentTree
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - canvasId
+            - operation
+          properties:
+            canvasId:
+              type: string
+              description: 画布ID
+              example: canvas_123456
+            operation:
+              type: string
+              description: 操作类型
+              enum: [move, copy, paste, reorder]
+              example: move
+            componentId:
+              type: string
+              description: 目标组件ID
+              example: comp_button_001
+            targetParentId:
+              type: string
+              nullable: true
+              description: 目标父组件ID（移动到容器内）
+              example: comp_container_002
+            targetIndex:
+              type: integer
+              nullable: true
+              description: 目标位置索引
+              example: 2
+            sourceData:
+              type: object
+              nullable: true
+              description: 源数据（用于粘贴操作）
+              additionalProperties: true
+        examples:
+          moveComponent:
+            summary: 移动组件到另一个容器
+            value:
+              canvasId: canvas_123456
+              operation: move
+              componentId: comp_button_001
+              targetParentId: comp_container_002
+              targetIndex: 0
+          copyComponent:
+            summary: 复制组件
+            value:
+              canvasId: canvas_123456
+              operation: copy
+              componentId: comp_button_001
+          pasteComponent:
+            summary: 粘贴组件
+            value:
+              canvasId: canvas_123456
+              operation: paste
+              targetParentId: comp_container_001
+              targetIndex: 2
+              sourceData:
+                type: button
+                name: 提交按钮（副本）
+                props:
+                  text: 提交
+          reorderComponent:
+            summary: 调整组件顺序
+            value:
+              canvasId: canvas_123456
+              operation: reorder
+              componentId: comp_button_001
+              targetIndex: 3
+  responses:
+    '200':
+      description: 操作成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      componentId:
+                        type: string
+                        description: 操作后的组件ID（复制/粘贴时返回新ID）
+                        example: comp_button_002
+                      tree:
+                        type: array
+                        description: 更新后的组件树
+                        items:
+                          $ref: '../../schemas/designer.yaml#/ComponentInstance'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 组件不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

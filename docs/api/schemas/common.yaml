@@ -1,0 +1,76 @@
+# 通用数据模型
+
+SuccessResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: true
+      description: 请求是否成功
+    code:
+      type: integer
+      example: 200
+      description: 状态码
+    message:
+      type: string
+      example: 操作成功
+      description: 响应消息
+    data:
+      type: object
+      description: 响应数据
+
+ErrorResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: false
+      description: 请求是否成功
+    code:
+      type: integer
+      example: 400
+      description: 错误码
+    message:
+      type: string
+      example: 请求参数错误
+      description: 错误消息
+    errors:
+      type: array
+      description: 详细错误信息
+      items:
+        type: object
+        properties:
+          field:
+            type: string
+            description: 错误字段
+          message:
+            type: string
+            description: 错误描述
+
+PaginationResponse:
+  type: object
+  properties:
+    total:
+      type: integer
+      description: 总记录数
+      example: 100
+    page:
+      type: integer
+      description: 当前页码
+      example: 1
+    size:
+      type: integer
+      description: 每页数量
+      example: 20
+    totalPages:
+      type: integer
+      description: 总页数
+      example: 5
+    hasNext:
+      type: boolean
+      description: 是否有下一页
+      example: true
+    hasPrevious:
+      type: boolean
+      description: 是否有上一页
+      example: false

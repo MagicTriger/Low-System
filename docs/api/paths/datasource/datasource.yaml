@@ -1,0 +1,339 @@
+get:
+  tags:
+    - 数据源
+  summary: 获取数据源列表
+  description: |
+    获取所有数据源列表。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持分页查询
+    - 支持按类型、状态筛选
+    - 支持搜索
+  operationId: getDataSources
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: page
+      in: query
+      required: false
+      description: 页码
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    - name: pageSize
+      in: query
+      required: false
+      description: 每页数量
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+    - name: type
+      in: query
+      required: false
+      description: 数据源类型
+      schema:
+        type: string
+        enum: [mysql, postgresql, mongodb, redis, http, graphql, rest]
+      example: mysql
+    - name: status
+      in: query
+      required: false
+      description: 数据源状态
+      schema:
+        type: string
+        enum: [active, inactive, error]
+      example: active
+    - name: search
+      in: query
+      required: false
+      description: 搜索关键词（名称、描述）
+      schema:
+        type: string
+      example: 用户
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '../../schemas/datasource.yaml#/DataSource'
+                      total:
+                        type: integer
+                        description: 总数
+                        example: 50
+                      page:
+                        type: integer
+                        description: 当前页码
+                        example: 1
+                      pageSize:
+                        type: integer
+                        description: 每页数量
+                        example: 20
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 数据源
+  summary: 创建数据源
+  description: |
+    创建新的数据源。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 创建后会自动测试连接
+    - 密码会加密存储
+  operationId: createDataSource
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - name
+            - type
+            - config
+          properties:
+            name:
+              type: string
+              description: 数据源名称
+              maxLength: 100
+              example: 用户数据库
+            type:
+              type: string
+              description: 数据源类型
+              enum: [mysql, postgresql, mongodb, redis, http, graphql, rest]
+              example: mysql
+            description:
+              type: string
+              nullable: true
+              description: 数据源描述
+              maxLength: 500
+              example: 主用户数据库
+            config:
+              $ref: '../../schemas/datasource.yaml#/DataSourceConfig'
+            enabled:
+              type: boolean
+              description: 是否启用
+              default: true
+              example: true
+            tags:
+              type: array
+              nullable: true
+              description: 标签
+              items:
+                type: string
+              example: ['用户', '核心数据库']
+        examples:
+          mysql:
+            summary: MySQL数据源
+            value:
+              name: 用户数据库
+              type: mysql
+              description: 主用户数据库
+              config:
+                host: localhost
+                port: 3306
+                database: user_db
+                username: root
+                password: password123
+                poolSize: 10
+                ssl: false
+              enabled: true
+              tags: ['用户', '核心数据库']
+          http:
+            summary: HTTP数据源
+            value:
+              name: 外部API
+              type: http
+              description: 第三方数据API
+              config:
+                baseUrl: https://api.example.com
+                headers:
+                  Authorization: Bearer token123
+                  Content-Type: application/json
+                timeout: 30000
+              enabled: true
+  responses:
+    '201':
+      description: 创建成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/datasource.yaml#/DataSourceResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 数据源
+  summary: 更新数据源
+  description: |
+    更新数据源配置。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持部分更新
+    - 更新配置后会重新测试连接
+  operationId: updateDataSource
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - id
+          properties:
+            id:
+              type: string
+              description: 数据源ID
+              example: ds_mysql_001
+            name:
+              type: string
+              description: 数据源名称
+              maxLength: 100
+              example: 用户数据库
+            description:
+              type: string
+              nullable: true
+              description: 数据源描述
+              maxLength: 500
+              example: 主用户数据库
+            config:
+              $ref: '../../schemas/datasource.yaml#/DataSourceConfig'
+            enabled:
+              type: boolean
+              description: 是否启用
+              example: true
+            tags:
+              type: array
+              nullable: true
+              description: 标签
+              items:
+                type: string
+              example: ['用户', '核心数据库']
+        examples:
+          updateConfig:
+            summary: 更新配置
+            value:
+              id: ds_mysql_001
+              config:
+                host: new-host.example.com
+                port: 3306
+                poolSize: 20
+          updateStatus:
+            summary: 更新状态
+            value:
+              id: ds_mysql_001
+              enabled: false
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/datasource.yaml#/DataSourceResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 数据源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 数据源
+  summary: 删除数据源
+  description: |
+    删除指定的数据源。
+
+    **认证**: 需要Bearer Token
+
+    **警告**: 删除数据源会同时删除相关的查询和绑定
+  operationId: deleteDataSource
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: query
+      required: true
+      description: 数据源ID
+      schema:
+        type: string
+      example: ds_mysql_001
+  responses:
+    '200':
+      description: 删除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    nullable: true
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 数据源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

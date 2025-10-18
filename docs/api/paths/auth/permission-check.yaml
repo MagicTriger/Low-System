@@ -1,0 +1,112 @@
+post:
+  tags:
+    - 认证与授权
+  summary: 权限验证
+  description: |
+    检查当前用户是否拥有指定的权限。
+
+    **认证方式**: Bearer Token
+
+    **权限模型说明**:
+    - 权限采用资源:操作的格式，如 `menu:create`、`resource:delete`
+    - 支持通配符权限，如 `*` 表示所有权限，`menu:*` 表示菜单的所有操作
+    - 权限检查支持AND和OR两种模式
+    - AND模式：用户必须拥有所有指定权限
+    - OR模式：用户只需拥有任意一个指定权限
+
+    **使用场景**:
+    - 前端按钮/菜单的显示控制
+    - 页面访问权限验证
+    - 功能模块的权限检查
+  operationId: checkPermission
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/auth.yaml#/PermissionCheckRequest'
+        examples:
+          singlePermission:
+            summary: 检查单个权限
+            value:
+              permissions: ['menu:create']
+              requireAll: true
+          multiplePermissionsAnd:
+            summary: 检查多个权限（AND模式）
+            value:
+              permissions: ['menu:create', 'menu:update', 'menu:delete']
+              requireAll: true
+          multiplePermissionsOr:
+            summary: 检查多个权限（OR模式）
+            value:
+              permissions: ['menu:create', 'resource:create']
+              requireAll: false
+  responses:
+    '200':
+      description: 权限检查成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/auth.yaml#/PermissionCheckResponse'
+          examples:
+            hasPermission:
+              summary: 拥有权限
+              value:
+                success: true
+                code: 200
+                message: 权限检查成功
+                data:
+                  hasPermission: true
+                  grantedPermissions: ['menu:create', 'menu:update', 'menu:delete']
+                  deniedPermissions: []
+            noPermission:
+              summary: 无权限
+              value:
+                success: true
+                code: 200
+                message: 权限检查成功
+                data:
+                  hasPermission: false
+                  grantedPermissions: ['menu:create']
+                  deniedPermissions: ['menu:update', 'menu:delete']
+            partialPermission:
+              summary: 部分权限（OR模式）
+              value:
+                success: true
+                code: 200
+                message: 权限检查成功
+                data:
+                  hasPermission: true
+                  grantedPermissions: ['menu:create']
+                  deniedPermissions: ['resource:create']
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            invalidParams:
+              summary: 参数错误
+              value:
+                success: false
+                code: 400
+                message: 请求参数错误
+                errors:
+                  - field: permissions
+                    message: 权限列表不能为空
+    '401':
+      description: 未授权或令牌无效
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            unauthorized:
+              summary: 未授权
+              value:
+                success: false
+                code: 401
+                message: 未授权，请先登录

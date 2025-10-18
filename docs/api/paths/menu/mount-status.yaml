@@ -1,0 +1,77 @@
+get:
+  tags:
+    - 菜单管理
+  summary: 查询菜单挂载状态
+  description: |
+    查询指定菜单的挂载状态，包括已挂载的模块列表和详细信息。
+
+    **认证**: 需要Bearer Token + 权限: `menu:view`
+
+    **说明**:
+    - 返回菜单在所有模块的挂载情况
+    - 包含挂载时间、父菜单、排序等详细信息
+  operationId: getMenuMountStatus
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: menuCode
+      in: query
+      required: true
+      description: 菜单编码
+      schema:
+        type: string
+      example: dashboard
+  responses:
+    '200':
+      description: 查询成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/menu.yaml#/MenuMountStatusResponse'
+          examples:
+            success:
+              summary: 挂载状态
+              value:
+                success: true
+                code: 200
+                message: 查询成功
+                data:
+                  menuCode: dashboard
+                  mountedModules: [admin, designer]
+                  mountDetails:
+                    - module: admin
+                      parentId: null
+                      sortOrder: 0
+                      mountedAt: '2024-01-01T00:00:00Z'
+                    - module: designer
+                      parentId: 5
+                      sortOrder: 2
+                      mountedAt: '2024-01-02T00:00:00Z'
+            notMounted:
+              summary: 未挂载
+              value:
+                success: true
+                code: 200
+                message: 查询成功
+                data:
+                  menuCode: dashboard
+                  mountedModules: []
+                  mountDetails: []
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 菜单不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

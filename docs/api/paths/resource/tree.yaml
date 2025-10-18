@@ -1,0 +1,70 @@
+get:
+  tags:
+    - 资源管理
+  summary: 获取资源树
+  description: |
+    获取资源的树形结构。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回所有资源的树形结构
+    - 支持按类型筛选
+    - 自动构建父子关系
+  operationId: getResourceTree
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: type
+      in: query
+      description: 资源类型筛选
+      schema:
+        type: string
+        enum: [page, component, datasource]
+      example: page
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/resource.yaml#/ResourceTreeResponse'
+          examples:
+            success:
+              summary: 资源树
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - id: 1
+                    name: 系统页面
+                    type: page
+                    parentId: null
+                    children:
+                      - id: 2
+                        name: 首页
+                        type: page
+                        parentId: 1
+                        children: []
+                      - id: 3
+                        name: 用户管理
+                        type: page
+                        parentId: 1
+                        children: []
+                  - id: 10
+                    name: 公共组件
+                    type: component
+                    parentId: null
+                    children:
+                      - id: 11
+                        name: 按钮组件
+                        type: component
+                        parentId: 10
+                        children: []
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

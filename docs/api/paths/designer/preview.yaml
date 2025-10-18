@@ -1,0 +1,249 @@
+get:
+  tags:
+    - 设计器
+  summary: 获取预览数据
+  description: |
+    获取画布的预览数据。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回画布的完整渲染数据
+    - 用于实时预览功能
+    - 包含所有组件的配置和样式
+  operationId: getPreviewData
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: canvasId
+      in: query
+      required: true
+      description: 画布ID
+      schema:
+        type: string
+      example: canvas_123456
+    - name: mode
+      in: query
+      required: false
+      description: 预览模式
+      schema:
+        type: string
+        enum: [desktop, tablet, mobile]
+        default: desktop
+      example: desktop
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      canvas:
+                        $ref: '../../schemas/designer.yaml#/CanvasState'
+                      renderData:
+                        type: object
+                        description: 渲染数据
+                        properties:
+                          html:
+                            type: string
+                            description: 生成的HTML
+                            example: <div class="container">...</div>
+                          css:
+                            type: string
+                            description: 生成的CSS
+                            example: .container { width: 1200px; }
+                          js:
+                            type: string
+                            description: 生成的JavaScript
+                            example: function handleClick() { ... }
+          examples:
+            desktopPreview:
+              summary: 桌面端预览
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  canvas:
+                    id: canvas_123456
+                    width: 1200
+                    height: 800
+                    components:
+                      - id: comp_button_001
+                        type: button
+                        name: 提交按钮
+                        position:
+                          x: 100
+                          y: 50
+                        size:
+                          width: 120
+                          height: 40
+                        props:
+                          text: 提交
+                  renderData:
+                    html: <div class="canvas"><button class="btn-primary">提交</button></div>
+                    css: .canvas { width: 1200px; height: 800px; } .btn-primary { background-color: #007bff; }
+                    js: document.querySelector('.btn-primary').addEventListener('click', handleSubmit);
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 画布不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 设计器
+  summary: 保存为资源
+  description: |
+    将设计好的页面保存到资源管理系统。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 将画布数据保存为资源
+    - 资源通过统一的版本发布流水线进行发布
+    - 不直接发布页面，而是保存到资源库
+  operationId: saveAsResource
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - canvasId
+            - resourceName
+            - resourceType
+          properties:
+            canvasId:
+              type: string
+              description: 画布ID
+              example: canvas_123456
+            resourceName:
+              type: string
+              description: 资源名称
+              maxLength: 100
+              example: 用户登录页面
+            resourceType:
+              type: string
+              description: 资源类型
+              enum: [page, component, template]
+              example: page
+            description:
+              type: string
+              nullable: true
+              description: 资源描述
+              maxLength: 500
+              example: 用户登录页面，包含用户名密码输入和登录按钮
+            tags:
+              type: array
+              nullable: true
+              description: 资源标签
+              items:
+                type: string
+              example: ['登录', '用户', '认证']
+            category:
+              type: string
+              nullable: true
+              description: 资源分类
+              example: 用户管理
+            icon:
+              type: string
+              nullable: true
+              description: 资源图标
+              example: user-login
+        examples:
+          savePage:
+            summary: 保存为页面资源
+            value:
+              canvasId: canvas_123456
+              resourceName: 用户登录页面
+              resourceType: page
+              description: 用户登录页面，包含用户名密码输入和登录按钮
+              tags: ['登录', '用户', '认证']
+              category: 用户管理
+              icon: user-login
+          saveComponent:
+            summary: 保存为组件资源
+            value:
+              canvasId: canvas_123456
+              resourceName: 自定义按钮组件
+              resourceType: component
+              description: 带图标的自定义按钮组件
+              tags: ['按钮', '组件']
+              category: 基础组件
+  responses:
+    '201':
+      description: 保存成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      resourceId:
+                        type: string
+                        description: 资源ID
+                        example: res_page_001
+                      resourceName:
+                        type: string
+                        description: 资源名称
+                        example: 用户登录页面
+                      resourceType:
+                        type: string
+                        description: 资源类型
+                        example: page
+                      createdAt:
+                        type: string
+                        format: date-time
+                        description: 创建时间
+                        example: '2024-01-01T12:00:00Z'
+          examples:
+            success:
+              summary: 保存成功
+              value:
+                success: true
+                code: 201
+                message: 保存成功
+                data:
+                  resourceId: res_page_001
+                  resourceName: 用户登录页面
+                  resourceType: page
+                  createdAt: '2024-01-01T12:00:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 画布不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

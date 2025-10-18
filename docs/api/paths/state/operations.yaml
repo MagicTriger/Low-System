@@ -1,0 +1,417 @@
+get:
+  tags:
+    - 状态管理
+  summary: 获取状态
+  description: |
+    获取指定命名空间的状态数据。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持获取完整状态或指定路径
+    - 返回当前版本号
+  operationId: getState
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: namespace
+      in: query
+      required: true
+      description: 命名空间
+      schema:
+        type: string
+      example: user
+    - name: path
+      in: query
+      required: false
+      description: 状态路径（点分隔）
+      schema:
+        type: string
+      example: currentUser.name
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateResponse'
+          examples:
+            fullState:
+              summary: 完整状态
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  namespace: user
+                  data:
+                    currentUser:
+                      id: user_001
+                      name: 张三
+                      role: admin
+                    isLoggedIn: true
+                    permissions: ['read', 'write', 'delete']
+                  version: 5
+                  lastModified: '2024-01-01T12:00:00Z'
+            pathState:
+              summary: 路径状态
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  namespace: user
+                  data: 张三
+                  version: 5
+                  lastModified: '2024-01-01T12:00:00Z'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块或路径不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 状态管理
+  summary: 提交mutation
+  description: |
+    提交一个mutation来修改状态。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - mutation是同步操作
+    - 会触发订阅回调
+    - 记录到历史
+  operationId: commitMutation
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - namespace
+            - type
+          properties:
+            namespace:
+              type: string
+              description: 命名空间
+              example: user
+            type:
+              type: string
+              description: mutation类型
+              example: SET_USER
+            payload:
+              description: mutation数据
+              example:
+                id: user_001
+                name: 张三
+                role: admin
+        examples:
+          setUser:
+            summary: 设置用户
+            value:
+              namespace: user
+              type: SET_USER
+              payload:
+                id: user_001
+                name: 张三
+                role: admin
+                email: zhangsan@example.com
+  responses:
+    '200':
+      description: 提交成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateResponse'
+          examples:
+            success:
+              summary: 提交成功
+              value:
+                success: true
+                code: 200
+                message: mutation提交成功
+                data:
+                  namespace: user
+                  data:
+                    currentUser:
+                      id: user_001
+                      name: 张三
+                      role: admin
+                      email: zhangsan@example.com
+                    isLoggedIn: true
+                    permissions: ['read', 'write', 'delete']
+                  version: 6
+                  lastModified: '2024-01-01T12:05:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块或mutation不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 状态管理
+  summary: 分发action
+  description: |
+    分发一个action来执行异步操作。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - action是异步操作
+    - 可能触发多个mutation
+    - 返回操作结果
+  operationId: dispatchAction
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - namespace
+            - type
+          properties:
+            namespace:
+              type: string
+              description: 命名空间
+              example: user
+            type:
+              type: string
+              description: action类型
+              example: login
+            payload:
+              description: action参数
+              example:
+                username: admin
+                password: '******'
+        examples:
+          login:
+            summary: 用户登录
+            value:
+              namespace: user
+              type: login
+              payload:
+                username: admin
+                password: password123
+  responses:
+    '200':
+      description: 分发成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      result:
+                        description: 操作结果
+                      mutations:
+                        type: array
+                        description: 触发的mutation列表
+                        items:
+                          type: string
+                      state:
+                        $ref: '../../schemas/state.yaml#/State'
+          examples:
+            success:
+              summary: 登录成功
+              value:
+                success: true
+                code: 200
+                message: action分发成功
+                data:
+                  result:
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                    user:
+                      id: user_001
+                      name: 张三
+                      role: admin
+                  mutations: ['SET_USER', 'SET_PERMISSIONS']
+                  state:
+                    namespace: user
+                    data:
+                      currentUser:
+                        id: user_001
+                        name: 张三
+                        role: admin
+                      isLoggedIn: true
+                      permissions: ['read', 'write', 'delete']
+                    version: 7
+                    lastModified: '2024-01-01T12:10:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块或action不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+patch:
+  tags:
+    - 状态管理
+  summary: 直接更新状态
+  description: |
+    直接更新状态数据（不通过mutation）。
+
+    **认证**: 需要Bearer Token
+
+    **警告**: 绕过mutation可能导致状态不一致
+  operationId: updateState
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - namespace
+            - data
+          properties:
+            namespace:
+              type: string
+              description: 命名空间
+              example: user
+            path:
+              type: string
+              nullable: true
+              description: 更新路径（为空则替换整个状态）
+              example: currentUser.name
+            data:
+              description: 新数据
+              example: 李四
+            merge:
+              type: boolean
+              description: 是否合并（仅对对象有效）
+              default: true
+              example: true
+        examples:
+          updatePath:
+            summary: 更新路径
+            value:
+              namespace: user
+              path: currentUser.name
+              data: 李四
+          replaceState:
+            summary: 替换状态
+            value:
+              namespace: user
+              data:
+                currentUser:
+                  id: user_002
+                  name: 李四
+                  role: user
+                isLoggedIn: true
+                permissions: ['read']
+              merge: false
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 状态管理
+  summary: 重置状态
+  description: |
+    重置状态到初始值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 恢复到模块注册时的初始状态
+    - 清除历史记录
+  operationId: resetState
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: namespace
+      in: query
+      required: true
+      description: 命名空间
+      schema:
+        type: string
+      example: user
+  responses:
+    '200':
+      description: 重置成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

@@ -1,0 +1,215 @@
+post:
+  tags:
+    - 数据源
+  summary: 清除查询缓存
+  description: |
+    清除指定查询的缓存数据。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 可以清除单个查询的缓存
+    - 可以清除所有查询的缓存
+    - 可以按数据源清除缓存
+  operationId: clearQueryCache
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            queryId:
+              type: string
+              nullable: true
+              description: 查询ID（清除单个查询缓存）
+              example: query_001
+            dataSourceId:
+              type: string
+              nullable: true
+              description: 数据源ID（清除该数据源所有查询缓存）
+              example: ds_mysql_001
+            clearAll:
+              type: boolean
+              description: 是否清除所有缓存
+              default: false
+              example: false
+        examples:
+          clearSingle:
+            summary: 清除单个查询缓存
+            value:
+              queryId: query_001
+          clearDataSource:
+            summary: 清除数据源所有缓存
+            value:
+              dataSourceId: ds_mysql_001
+          clearAll:
+            summary: 清除所有缓存
+            value:
+              clearAll: true
+  responses:
+    '200':
+      description: 清除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      clearedCount:
+                        type: integer
+                        description: 清除的缓存数量
+                        example: 5
+          examples:
+            success:
+              summary: 清除成功
+              value:
+                success: true
+                code: 200
+                message: 缓存已清除
+                data:
+                  clearedCount: 5
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+get:
+  tags:
+    - 数据源
+  summary: 获取缓存统计
+  description: |
+    获取查询缓存的统计信息。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回缓存命中率
+    - 返回缓存大小
+    - 返回缓存条目数
+  operationId: getCacheStats
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: queryId
+      in: query
+      required: false
+      description: 查询ID（获取单个查询的缓存统计）
+      schema:
+        type: string
+      example: query_001
+    - name: dataSourceId
+      in: query
+      required: false
+      description: 数据源ID（获取该数据源的缓存统计）
+      schema:
+        type: string
+      example: ds_mysql_001
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      totalEntries:
+                        type: integer
+                        description: 缓存条目总数
+                        example: 25
+                      totalSize:
+                        type: integer
+                        description: 缓存总大小（字节）
+                        example: 1048576
+                      hitRate:
+                        type: number
+                        description: 缓存命中率（0-1）
+                        example: 0.85
+                      hits:
+                        type: integer
+                        description: 缓存命中次数
+                        example: 850
+                      misses:
+                        type: integer
+                        description: 缓存未命中次数
+                        example: 150
+                      queries:
+                        type: array
+                        description: 查询缓存详情
+                        items:
+                          type: object
+                          properties:
+                            queryId:
+                              type: string
+                              example: query_001
+                            queryName:
+                              type: string
+                              example: 获取用户列表
+                            entries:
+                              type: integer
+                              description: 缓存条目数
+                              example: 5
+                            size:
+                              type: integer
+                              description: 缓存大小（字节）
+                              example: 102400
+                            hitRate:
+                              type: number
+                              description: 命中率
+                              example: 0.9
+                            lastAccess:
+                              type: string
+                              format: date-time
+                              description: 最后访问时间
+                              example: '2024-01-01T12:00:00Z'
+          examples:
+            overall:
+              summary: 整体统计
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  totalEntries: 25
+                  totalSize: 1048576
+                  hitRate: 0.85
+                  hits: 850
+                  misses: 150
+                  queries:
+                    - queryId: query_001
+                      queryName: 获取用户列表
+                      entries: 5
+                      size: 102400
+                      hitRate: 0.9
+                      lastAccess: '2024-01-01T12:00:00Z'
+                    - queryId: query_002
+                      queryName: 获取订单列表
+                      entries: 8
+                      size: 204800
+                      hitRate: 0.8
+                      lastAccess: '2024-01-01T11:30:00Z'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

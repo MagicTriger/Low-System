@@ -1,0 +1,71 @@
+get:
+  tags:
+    - 菜单管理
+  summary: 获取菜单详情
+  description: |
+    根据ID获取菜单的详细信息。
+
+    **认证**: 需要Bearer Token + 权限: `menu:view`
+  operationId: getMenuDetail
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: 菜单ID
+      schema:
+        type: integer
+      example: 1
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/menu.yaml#/MenuDetailResponse'
+          examples:
+            success:
+              summary: 菜单详情
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  id: 1
+                  parentId: null
+                  menuCode: dashboard
+                  name: 仪表板
+                  module: admin
+                  nodeType: 2
+                  sortOrder: 0
+                  url: /dashboard
+                  icon: dashboard
+                  path: /admin/dashboard
+                  enabled: true
+                  visible: true
+                  permission: menu:view
+                  description: 系统仪表板页面
+                  createdAt: '2024-01-01T00:00:00Z'
+                  updatedAt: '2024-01-01T00:00:00Z'
+                  createdBy: admin
+                  updatedBy: admin
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 菜单不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            notFound:
+              summary: 菜单不存在
+              value:
+                success: false
+                code: 404
+                message: 菜单不存在

@@ -1,0 +1,305 @@
+post:
+  tags:
+    - 状态管理
+  summary: 保存状态
+  description: |
+    手动保存状态到持久化存储。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持保存单个模块或所有模块
+    - 根据配置选择存储方式
+    - 可选加密
+  operationId: saveState
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            namespace:
+              type: string
+              nullable: true
+              description: 命名空间（为空则保存所有）
+              example: user
+            force:
+              type: boolean
+              description: 是否强制保存（忽略配置）
+              default: false
+              example: false
+        examples:
+          saveOne:
+            summary: 保存单个模块
+            value:
+              namespace: user
+              force: false
+          saveAll:
+            summary: 保存所有模块
+            value:
+              force: false
+  responses:
+    '200':
+      description: 保存成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      saved:
+                        type: array
+                        description: 已保存的模块
+                        items:
+                          type: string
+                        example: ['user', 'app']
+                      skipped:
+                        type: array
+                        description: 跳过的模块（未配置持久化）
+                        items:
+                          type: string
+                        example: ['designer']
+                      size:
+                        type: integer
+                        description: 总大小（字节）
+                        example: 4096
+          examples:
+            success:
+              summary: 保存成功
+              value:
+                success: true
+                code: 200
+                message: 状态保存成功
+                data:
+                  saved: ['user', 'app']
+                  skipped: ['designer']
+                  size: 4096
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+get:
+  tags:
+    - 状态管理
+  summary: 恢复状态
+  description: |
+    从持久化存储恢复状态。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持恢复单个模块或所有模块
+    - 自动解密
+    - 验证版本兼容性
+  operationId: restoreState
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: namespace
+      in: query
+      required: false
+      description: 命名空间（为空则恢复所有）
+      schema:
+        type: string
+      example: user
+    - name: merge
+      in: query
+      required: false
+      description: 是否与当前状态合并
+      schema:
+        type: boolean
+        default: false
+      example: false
+  responses:
+    '200':
+      description: 恢复成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      restored:
+                        type: array
+                        description: 已恢复的模块
+                        items:
+                          type: string
+                        example: ['user', 'app']
+                      notFound:
+                        type: array
+                        description: 未找到的模块
+                        items:
+                          type: string
+                        example: []
+                      states:
+                        type: object
+                        description: 恢复的状态数据
+                        additionalProperties:
+                          type: object
+          examples:
+            success:
+              summary: 恢复成功
+              value:
+                success: true
+                code: 200
+                message: 状态恢复成功
+                data:
+                  restored: ['user', 'app']
+                  notFound: []
+                  states:
+                    user:
+                      currentUser:
+                        id: user_001
+                        name: 张三
+                      isLoggedIn: true
+                    app:
+                      theme: dark
+                      language: zh-CN
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 状态管理
+  summary: 配置持久化
+  description: |
+    配置状态模块的持久化选项。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 可配置存储类型
+    - 可选择持久化路径
+    - 支持加密和过期时间
+  operationId: configurePersistence
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/state.yaml#/StatePersistConfig'
+        examples:
+          configure:
+            summary: 配置持久化
+            value:
+              namespace: user
+              enabled: true
+              storage: localStorage
+              key: app_user_state
+              paths: ['currentUser', 'preferences']
+              excludePaths: ['temporaryData']
+              encryption: true
+              ttl: 86400
+              version: '1.0.0'
+  responses:
+    '200':
+      description: 配置成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '../../schemas/state.yaml#/StatePersistConfig'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 状态管理
+  summary: 清除持久化数据
+  description: |
+    清除持久化存储中的状态数据。
+
+    **认证**: 需要Bearer Token
+
+    **警告**: 此操作不可恢复
+  operationId: clearPersistedState
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: namespace
+      in: query
+      required: false
+      description: 命名空间（为空则清除所有）
+      schema:
+        type: string
+      example: user
+  responses:
+    '200':
+      description: 清除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      cleared:
+                        type: array
+                        description: 已清除的模块
+                        items:
+                          type: string
+                        example: ['user', 'app']
+          examples:
+            success:
+              summary: 清除成功
+              value:
+                success: true
+                code: 200
+                message: 持久化数据清除成功
+                data:
+                  cleared: ['user', 'app']
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

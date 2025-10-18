@@ -1,0 +1,357 @@
+# 配置管理相关数据模型
+
+Config:
+  type: object
+  description: 配置项
+  required:
+    - key
+    - value
+  properties:
+    key:
+      type: string
+      description: 配置键
+      example: app.theme
+    value:
+      description: 配置值（可以是任意类型）
+      example: dark
+    type:
+      type: string
+      description: 值类型
+      enum: [string, number, boolean, object, array]
+      example: string
+    description:
+      type: string
+      nullable: true
+      description: 配置描述
+      maxLength: 500
+      example: 应用主题设置
+    category:
+      type: string
+      nullable: true
+      description: 配置分类
+      example: appearance
+    scope:
+      type: string
+      description: 配置作用域
+      enum: [global, user, workspace, session]
+      default: global
+      example: user
+    editable:
+      type: boolean
+      description: 是否可编辑
+      default: true
+      example: true
+    sensitive:
+      type: boolean
+      description: 是否敏感信息
+      default: false
+      example: false
+    validation:
+      type: object
+      nullable: true
+      description: 验证规则
+      properties:
+        required:
+          type: boolean
+          example: false
+        pattern:
+          type: string
+          example: ^[a-z]+$
+        min:
+          type: number
+          example: 0
+        max:
+          type: number
+          example: 100
+        enum:
+          type: array
+          items:
+            type: string
+          example: [light, dark, auto]
+    defaultValue:
+      description: 默认值
+      example: light
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T12:00:00Z'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+      example: '2024-01-01T12:00:00Z'
+    updatedBy:
+      type: string
+      nullable: true
+      description: 更新人
+      example: admin
+
+ConfigSource:
+  type: object
+  description: 配置源
+  properties:
+    name:
+      type: string
+      description: 配置源名称
+      example: environment
+    type:
+      type: string
+      description: 配置源类型
+      enum: [file, environment, database, remote, memory]
+      example: environment
+    priority:
+      type: integer
+      description: 优先级（数字越大优先级越高）
+      minimum: 0
+      default: 0
+      example: 10
+    enabled:
+      type: boolean
+      description: 是否启用
+      default: true
+      example: true
+    config:
+      type: object
+      nullable: true
+      description: 配置源配置
+      additionalProperties: true
+      example:
+        prefix: APP_
+        caseSensitive: false
+
+ConfigValidation:
+  type: object
+  description: 配置验证结果
+  properties:
+    valid:
+      type: boolean
+      description: 是否有效
+      example: true
+    errors:
+      type: array
+      description: 错误列表
+      items:
+        type: object
+        properties:
+          key:
+            type: string
+            description: 配置键
+            example: app.port
+          message:
+            type: string
+            description: 错误信息
+            example: Port must be between 1 and 65535
+          code:
+            type: string
+            description: 错误码
+            example: INVALID_VALUE
+    warnings:
+      type: array
+      description: 警告列表
+      items:
+        type: object
+        properties:
+          key:
+            type: string
+            example: app.debug
+          message:
+            type: string
+            example: Debug mode is enabled in production
+
+ConfigChange:
+  type: object
+  description: 配置变更记录
+  properties:
+    id:
+      type: string
+      description: 变更ID
+      example: change_001
+    key:
+      type: string
+      description: 配置键
+      example: app.theme
+    oldValue:
+      description: 旧值
+      example: light
+    newValue:
+      description: 新值
+      example: dark
+    changedBy:
+      type: string
+      description: 变更人
+      example: admin
+    changedAt:
+      type: string
+      format: date-time
+      description: 变更时间
+      example: '2024-01-01T12:00:00Z'
+    reason:
+      type: string
+      nullable: true
+      description: 变更原因
+      example: User preference update
+
+ConfigSnapshot:
+  type: object
+  description: 配置快照
+  properties:
+    id:
+      type: string
+      description: 快照ID
+      example: snapshot_001
+    name:
+      type: string
+      description: 快照名称
+      example: Production Config 2024-01-01
+    description:
+      type: string
+      nullable: true
+      description: 快照描述
+      maxLength: 500
+      example: Configuration snapshot before major update
+    configs:
+      type: object
+      description: 配置数据
+      additionalProperties: true
+      example:
+        app.theme: dark
+        app.language: en
+        app.debug: false
+    createdBy:
+      type: string
+      description: 创建人
+      example: admin
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T12:00:00Z'
+
+ConfigWatcher:
+  type: object
+  description: 配置监听器
+  properties:
+    id:
+      type: string
+      description: 监听器ID
+      example: watcher_001
+    keys:
+      type: array
+      description: 监听的配置键（支持通配符）
+      items:
+        type: string
+      example: [app.*, system.debug]
+    callback:
+      type: string
+      description: 回调URL或函数名
+      example: https://api.example.com/webhooks/config-change
+    enabled:
+      type: boolean
+      description: 是否启用
+      default: true
+      example: true
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T12:00:00Z'
+
+# 请求和响应模型
+
+ConfigResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/Config'
+
+ConfigListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/Config'
+
+ConfigBatchResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+          example:
+            app.theme: dark
+            app.language: en
+            app.debug: false
+
+ConfigValidationResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/ConfigValidation'
+
+ConfigChangeListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/ConfigChange'
+            total:
+              type: integer
+              example: 100
+            page:
+              type: integer
+              example: 1
+            pageSize:
+              type: integer
+              example: 20
+
+ConfigSnapshotResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/ConfigSnapshot'
+
+ConfigSnapshotListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/ConfigSnapshot'
+
+ConfigWatcherResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/ConfigWatcher'
+
+ConfigWatcherListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/ConfigWatcher'

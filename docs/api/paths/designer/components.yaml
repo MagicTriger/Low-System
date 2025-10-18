@@ -1,0 +1,291 @@
+post:
+  tags:
+    - 设计器
+  summary: 添加组件到画布
+  description: |
+    在画布上添加一个新组件。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持从组件库添加预定义组件
+    - 支持自定义组件属性和样式
+    - 自动生成唯一的组件ID
+  operationId: addComponent
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - canvasId
+            - type
+            - position
+          properties:
+            canvasId:
+              type: string
+              description: 画布ID
+              example: canvas_123456
+            type:
+              type: string
+              description: 组件类型
+              enum: [button, input, text, image, container, grid, flex, form]
+              example: button
+            name:
+              type: string
+              description: 组件名称
+              maxLength: 50
+              example: 提交按钮
+            position:
+              $ref: '../../schemas/designer.yaml#/Position'
+            size:
+              $ref: '../../schemas/designer.yaml#/Size'
+            style:
+              $ref: '../../schemas/designer.yaml#/ComponentStyle'
+            props:
+              type: object
+              description: 组件属性
+              additionalProperties: true
+              example:
+                text: 点击我
+                disabled: false
+            parentId:
+              type: string
+              nullable: true
+              description: 父组件ID（添加到容器内）
+              example: comp_container_001
+        examples:
+          addButton:
+            summary: 添加按钮组件
+            value:
+              canvasId: canvas_123456
+              type: button
+              name: 提交按钮
+              position:
+                x: 100
+                y: 50
+              size:
+                width: 120
+                height: 40
+              style:
+                backgroundColor: '#007bff'
+                color: '#ffffff'
+              props:
+                text: 提交
+          addToContainer:
+            summary: 添加到容器内
+            value:
+              canvasId: canvas_123456
+              type: input
+              name: 用户名输入框
+              position:
+                x: 20
+                y: 20
+              size:
+                width: 200
+                height: 32
+              parentId: comp_container_001
+              props:
+                placeholder: 请输入用户名
+  responses:
+    '201':
+      description: 添加成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/designer.yaml#/ComponentInstanceResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 画布不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 设计器
+  summary: 更新组件
+  description: |
+    更新画布上的组件属性。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持部分更新
+    - 可以更新位置、尺寸、样式、属性等
+    - 更新后自动触发画布重新渲染
+  operationId: updateComponent
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - canvasId
+            - componentId
+          properties:
+            canvasId:
+              type: string
+              description: 画布ID
+              example: canvas_123456
+            componentId:
+              type: string
+              description: 组件ID
+              example: comp_button_001
+            name:
+              type: string
+              description: 组件名称
+              maxLength: 50
+              example: 提交按钮
+            position:
+              $ref: '../../schemas/designer.yaml#/Position'
+            size:
+              $ref: '../../schemas/designer.yaml#/Size'
+            style:
+              $ref: '../../schemas/designer.yaml#/ComponentStyle'
+            props:
+              type: object
+              description: 组件属性
+              additionalProperties: true
+            visible:
+              type: boolean
+              description: 是否可见
+              example: true
+            locked:
+              type: boolean
+              description: 是否锁定
+              example: false
+            zIndex:
+              type: integer
+              description: 层级
+              minimum: 0
+              maximum: 9999
+              example: 1
+        examples:
+          updatePosition:
+            summary: 更新位置
+            value:
+              canvasId: canvas_123456
+              componentId: comp_button_001
+              position:
+                x: 150
+                y: 100
+          updateStyle:
+            summary: 更新样式
+            value:
+              canvasId: canvas_123456
+              componentId: comp_button_001
+              style:
+                backgroundColor: '#28a745'
+                fontSize: 16
+          updateProps:
+            summary: 更新属性
+            value:
+              canvasId: canvas_123456
+              componentId: comp_button_001
+              props:
+                text: 确认提交
+                disabled: false
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/designer.yaml#/ComponentInstanceResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 组件不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 设计器
+  summary: 删除组件
+  description: |
+    从画布上删除组件。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 删除容器组件时，会同时删除其所有子组件
+    - 支持批量删除
+  operationId: deleteComponent
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: canvasId
+      in: query
+      required: true
+      description: 画布ID
+      schema:
+        type: string
+      example: canvas_123456
+    - name: componentIds
+      in: query
+      required: true
+      description: 组件ID列表（逗号分隔）
+      schema:
+        type: string
+      example: comp_button_001,comp_input_002
+  responses:
+    '200':
+      description: 删除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      deletedCount:
+                        type: integer
+                        description: 删除的组件数量
+                        example: 2
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 组件不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

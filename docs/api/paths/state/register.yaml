@@ -1,0 +1,293 @@
+post:
+  tags:
+    - 状态管理
+  summary: 注册状态模块
+  description: |
+    注册一个新的状态模块。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 命名空间必须唯一
+    - 支持模块隔离
+    - 可配置持久化
+    - 自动初始化状态
+  operationId: registerStateModule
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - name
+            - namespace
+            - state
+          properties:
+            name:
+              type: string
+              description: 模块名称
+              maxLength: 100
+              example: 用户状态模块
+            namespace:
+              type: string
+              description: 命名空间
+              pattern: '^[a-zA-Z][a-zA-Z0-9_]*$'
+              maxLength: 50
+              example: user
+            description:
+              type: string
+              nullable: true
+              description: 模块描述
+              maxLength: 500
+              example: 管理用户相关的状态数据
+            state:
+              type: object
+              description: 初始状态数据
+              additionalProperties: true
+              example:
+                currentUser: null
+                isLoggedIn: false
+                permissions: []
+            getters:
+              type: object
+              nullable: true
+              description: 计算属性定义
+              additionalProperties:
+                type: string
+              example:
+                isAdmin: "state.currentUser?.role === 'admin'"
+            mutations:
+              type: array
+              nullable: true
+              description: 同步修改方法
+              items:
+                type: string
+              example: ['SET_USER', 'SET_PERMISSIONS']
+            actions:
+              type: array
+              nullable: true
+              description: 异步操作方法
+              items:
+                type: string
+              example: ['login', 'logout']
+            isolated:
+              type: boolean
+              description: 是否隔离
+              default: false
+              example: false
+            persistent:
+              type: boolean
+              description: 是否持久化
+              default: false
+              example: true
+            persistKey:
+              type: string
+              nullable: true
+              description: 持久化存储键
+              example: user_state
+        examples:
+          userModule:
+            summary: 用户状态模块
+            value:
+              name: 用户状态模块
+              namespace: user
+              description: 管理用户相关的状态数据
+              state:
+                currentUser: null
+                isLoggedIn: false
+                permissions: []
+                preferences:
+                  theme: light
+                  language: zh-CN
+              getters:
+                isAdmin: "state.currentUser?.role === 'admin'"
+                hasPermission: '(state) => (permission) => state.permissions.includes(permission)'
+              mutations: ['SET_USER', 'SET_PERMISSIONS', 'SET_PREFERENCES', 'CLEAR_USER']
+              actions: ['login', 'logout', 'fetchPermissions', 'updatePreferences']
+              isolated: false
+              persistent: true
+              persistKey: app_user_state
+  responses:
+    '201':
+      description: 注册成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateModuleResponse'
+          examples:
+            success:
+              summary: 注册成功
+              value:
+                success: true
+                code: 201
+                message: 状态模块注册成功
+                data:
+                  id: module_user_001
+                  name: 用户状态模块
+                  namespace: user
+                  description: 管理用户相关的状态数据
+                  state:
+                    currentUser: null
+                    isLoggedIn: false
+                    permissions: []
+                    preferences:
+                      theme: light
+                      language: zh-CN
+                  getters:
+                    isAdmin: "state.currentUser?.role === 'admin'"
+                    hasPermission: '(state) => (permission) => state.permissions.includes(permission)'
+                  mutations: ['SET_USER', 'SET_PERMISSIONS', 'SET_PREFERENCES', 'CLEAR_USER']
+                  actions: ['login', 'logout', 'fetchPermissions', 'updatePreferences']
+                  isolated: false
+                  persistent: true
+                  persistKey: app_user_state
+                  createdAt: '2024-01-01T00:00:00Z'
+                  updatedAt: '2024-01-01T00:00:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '409':
+      description: 命名空间已存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            conflict:
+              summary: 命名空间冲突
+              value:
+                success: false
+                code: 409
+                message: 命名空间已存在
+                error:
+                  field: namespace
+                  reason: 命名空间 'user' 已被使用
+
+delete:
+  tags:
+    - 状态管理
+  summary: 注销状态模块
+  description: |
+    注销一个状态模块。
+
+    **认证**: 需要Bearer Token
+
+    **警告**: 注销模块会清除所有相关状态和订阅
+  operationId: unregisterStateModule
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: namespace
+      in: query
+      required: true
+      description: 命名空间
+      schema:
+        type: string
+      example: user
+  responses:
+    '200':
+      description: 注销成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    nullable: true
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 模块不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+get:
+  tags:
+    - 状态管理
+  summary: 获取已注册模块列表
+  description: |
+    获取所有已注册的状态模块。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回模块基本信息
+    - 不包含完整状态数据
+  operationId: getStateModules
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: isolated
+      in: query
+      required: false
+      description: 筛选隔离模块
+      schema:
+        type: boolean
+      example: false
+    - name: persistent
+      in: query
+      required: false
+      description: 筛选持久化模块
+      schema:
+        type: boolean
+      example: true
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/state.yaml#/StateModuleListResponse'
+          examples:
+            success:
+              summary: 模块列表
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - id: module_user_001
+                    name: 用户状态模块
+                    namespace: user
+                    isolated: false
+                    persistent: true
+                    createdAt: '2024-01-01T00:00:00Z'
+                  - id: module_app_001
+                    name: 应用状态模块
+                    namespace: app
+                    isolated: false
+                    persistent: true
+                    createdAt: '2024-01-01T00:00:00Z'
+                  - id: module_designer_001
+                    name: 设计器状态模块
+                    namespace: designer
+                    isolated: true
+                    persistent: false
+                    createdAt: '2024-01-01T00:00:00Z'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

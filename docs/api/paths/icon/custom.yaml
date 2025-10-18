@@ -1,0 +1,427 @@
+post:
+  tags:
+    - 图标库
+  summary: 上传自定义图标
+  description: |
+    上传自定义图标到指定图标库。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持SVG、PNG、JPG等格式
+    - 文件大小限制: 2MB
+    - 自动生成图标ID
+    - 支持批量上传
+  operationId: uploadCustomIcon
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          required:
+            - libraryId
+            - name
+            - file
+          properties:
+            libraryId:
+              type: string
+              description: 图标库ID
+              example: lib_custom_001
+            name:
+              type: string
+              description: 图标名称
+              maxLength: 100
+              example: custom-icon
+            displayName:
+              type: string
+              description: 显示名称
+              maxLength: 100
+              example: 自定义图标
+            category:
+              type: string
+              description: 图标分类
+              example: custom
+            tags:
+              type: array
+              description: 标签（JSON字符串）
+              items:
+                type: string
+              example: ['custom', 'user']
+            file:
+              type: string
+              format: binary
+              description: 图标文件
+            description:
+              type: string
+              description: 描述
+              maxLength: 200
+              example: 用户自定义图标
+        examples:
+          uploadIcon:
+            summary: 上传图标
+            value:
+              libraryId: lib_custom_001
+              name: custom-icon
+              displayName: 自定义图标
+              category: custom
+              tags: ['custom', 'user']
+              description: 用户自定义图标
+  responses:
+    '201':
+      description: 上传成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/icon.yaml#/IconResponse'
+          examples:
+            success:
+              summary: 上传成功
+              value:
+                success: true
+                code: 201
+                message: 图标上传成功
+                data:
+                  id: icon_custom_001
+                  name: custom-icon
+                  displayName: 自定义图标
+                  libraryId: lib_custom_001
+                  category: custom
+                  tags: ['custom', 'user']
+                  svg: '<svg viewBox="0 0 24 24">...</svg>'
+                  url: https://cdn.example.com/icons/custom/custom-icon.svg
+                  formats: ['svg', 'png']
+                  createdAt: '2024-01-01T12:00:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            invalidFile:
+              summary: 文件格式错误
+              value:
+                success: false
+                code: 400
+                message: 不支持的文件格式
+                error:
+                  field: file
+                  reason: 只支持SVG、PNG、JPG格式
+            fileTooLarge:
+              summary: 文件过大
+              value:
+                success: false
+                code: 400
+                message: 文件大小超过限制
+                error:
+                  field: file
+                  reason: 文件大小不能超过2MB
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 图标库不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '409':
+      description: 图标名称已存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 图标库
+  summary: 更新自定义图标
+  description: |
+    更新自定义图标信息或文件。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 只能更新自定义图标库中的图标
+    - 可以只更新信息，不更新文件
+    - 可以同时更新信息和文件
+  operationId: updateCustomIcon
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          required:
+            - id
+          properties:
+            id:
+              type: string
+              description: 图标ID
+              example: icon_custom_001
+            name:
+              type: string
+              description: 图标名称
+              maxLength: 100
+              example: custom-icon-v2
+            displayName:
+              type: string
+              description: 显示名称
+              maxLength: 100
+              example: 自定义图标 v2
+            category:
+              type: string
+              description: 图标分类
+              example: custom
+            tags:
+              type: array
+              description: 标签（JSON字符串）
+              items:
+                type: string
+              example: ['custom', 'user', 'updated']
+            file:
+              type: string
+              format: binary
+              description: 图标文件（可选）
+            description:
+              type: string
+              description: 描述
+              maxLength: 200
+              example: 更新后的自定义图标
+        examples:
+          updateInfo:
+            summary: 只更新信息
+            value:
+              id: icon_custom_001
+              displayName: 自定义图标 v2
+              tags: ['custom', 'user', 'updated']
+              description: 更新后的自定义图标
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/icon.yaml#/IconResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 无权限修改系统图标
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 图标不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 图标库
+  summary: 删除自定义图标
+  description: |
+    删除自定义图标。
+
+    **认证**: 需要Bearer Token
+
+    **警告**: 删除操作不可恢复
+  operationId: deleteCustomIcon
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: query
+      required: true
+      description: 图标ID
+      schema:
+        type: string
+      example: icon_custom_001
+  responses:
+    '200':
+      description: 删除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    nullable: true
+          examples:
+            success:
+              summary: 删除成功
+              value:
+                success: true
+                code: 200
+                message: 图标删除成功
+                data: null
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 无权限删除系统图标
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            systemIcon:
+              summary: 系统图标不可删除
+              value:
+                success: false
+                code: 403
+                message: 无权限删除系统图标
+                error:
+                  reason: 只能删除自定义图标库中的图标
+    '404':
+      description: 图标不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+get:
+  tags:
+    - 图标库
+  summary: 批量上传自定义图标
+  description: |
+    批量上传多个自定义图标。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 最多支持同时上传20个图标
+    - 单个文件大小限制: 2MB
+    - 总大小限制: 20MB
+    - 支持部分成功
+  operationId: batchUploadCustomIcons
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          required:
+            - libraryId
+            - files
+          properties:
+            libraryId:
+              type: string
+              description: 图标库ID
+              example: lib_custom_001
+            category:
+              type: string
+              description: 默认分类
+              example: custom
+            files:
+              type: array
+              description: 图标文件列表
+              items:
+                type: string
+                format: binary
+              maxItems: 20
+  responses:
+    '200':
+      description: 批量上传完成
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: 总数
+                        example: 10
+                      success:
+                        type: integer
+                        description: 成功数
+                        example: 8
+                      failed:
+                        type: integer
+                        description: 失败数
+                        example: 2
+                      icons:
+                        type: array
+                        description: 成功上传的图标
+                        items:
+                          $ref: '../../schemas/icon.yaml#/Icon'
+                      errors:
+                        type: array
+                        description: 失败的文件
+                        items:
+                          type: object
+                          properties:
+                            filename:
+                              type: string
+                              example: icon3.svg
+                            reason:
+                              type: string
+                              example: 文件格式不支持
+          examples:
+            partialSuccess:
+              summary: 部分成功
+              value:
+                success: true
+                code: 200
+                message: 批量上传完成
+                data:
+                  total: 10
+                  success: 8
+                  failed: 2
+                  icons:
+                    - id: icon_custom_001
+                      name: icon1
+                      libraryId: lib_custom_001
+                    - id: icon_custom_002
+                      name: icon2
+                      libraryId: lib_custom_001
+                  errors:
+                    - filename: icon3.svg
+                      reason: 文件格式不支持
+                    - filename: icon4.svg
+                      reason: 文件大小超过限制
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

@@ -1,0 +1,48 @@
+# 可复用参数
+
+PageParam:
+  name: page
+  in: query
+  description: 页码
+  schema:
+    type: integer
+    minimum: 1
+    default: 1
+  example: 1
+
+SizeParam:
+  name: size
+  in: query
+  description: 每页数量
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 100
+    default: 20
+  example: 20
+
+SortByParam:
+  name: sortBy
+  in: query
+  description: 排序字段
+  schema:
+    type: string
+  example: createdAt
+
+SortOrderParam:
+  name: sortOrder
+  in: query
+  description: 排序方向
+  schema:
+    type: string
+    enum: [asc, desc]
+    default: desc
+  example: desc
+
+KeywordParam:
+  name: keyword
+  in: query
+  description: 搜索关键词
+  schema:
+    type: string
+  example: 搜索内容

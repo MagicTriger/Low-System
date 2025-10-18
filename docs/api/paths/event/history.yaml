@@ -1,0 +1,330 @@
+get:
+  tags:
+    - 事件系统
+  summary: 获取事件日志
+  description: |
+    获取事件处理日志。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 记录所有事件的处理过程
+    - 支持按事件ID、订阅ID、处理器ID筛选
+    - 支持按时间范围查询
+    - 支持按状态筛选
+  operationId: getEventLogs
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: page
+      in: query
+      required: false
+      description: 页码
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    - name: pageSize
+      in: query
+      required: false
+      description: 每页数量
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      example: 50
+    - name: eventId
+      in: query
+      required: false
+      description: 事件ID
+      schema:
+        type: string
+      example: event_001
+    - name: subscriptionId
+      in: query
+      required: false
+      description: 订阅ID
+      schema:
+        type: string
+      example: sub_001
+    - name: handlerId
+      in: query
+      required: false
+      description: 处理器ID
+      schema:
+        type: string
+      example: handler_001
+    - name: action
+      in: query
+      required: false
+      description: 操作类型
+      schema:
+        type: string
+        enum: [publish, subscribe, handle, retry, fail]
+      example: handle
+    - name: status
+      in: query
+      required: false
+      description: 状态
+      schema:
+        type: string
+        enum: [success, failure, timeout, cancelled]
+      example: success
+    - name: from
+      in: query
+      required: false
+      description: 开始时间
+      schema:
+        type: string
+        format: date-time
+      example: '2024-01-01T00:00:00Z'
+    - name: to
+      in: query
+      required: false
+      description: 结束时间
+      schema:
+        type: string
+        format: date-time
+      example: '2024-01-01T23:59:59Z'
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/event.yaml#/EventLogResponse'
+          examples:
+            success:
+              summary: 事件日志
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  items:
+                    - id: log_001
+                      eventId: event_001
+                      subscriptionId: sub_001
+                      action: subscribe
+                      status: success
+                      duration: 150
+                      request:
+                        method: POST
+                        url: https://api.example.com/webhooks/user-events
+                        headers:
+                          Authorization: Bearer token123
+                        body:
+                          type: user.login
+                          payload:
+                            userId: user_001
+                      response:
+                        status: 200
+                        body:
+                          success: true
+                      timestamp: '2024-01-01T12:00:00Z'
+                    - id: log_002
+                      eventId: event_001
+                      handlerId: handler_001
+                      action: handle
+                      status: success
+                      duration: 85
+                      timestamp: '2024-01-01T12:00:00Z'
+                  total: 500
+                  page: 1
+                  pageSize: 50
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 事件系统
+  summary: 获取事件统计
+  description: |
+    获取事件统计信息。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持按事件类型统计
+    - 支持按时间范围统计
+    - 提供成功率、平均处理时间等指标
+  operationId: getEventStats
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            eventTypes:
+              type: array
+              description: 事件类型列表（为空则统计所有）
+              items:
+                type: string
+              example: [user.login, user.logout, system.alert]
+            from:
+              type: string
+              format: date-time
+              description: 开始时间
+              example: '2024-01-01T00:00:00Z'
+            to:
+              type: string
+              format: date-time
+              description: 结束时间
+              example: '2024-01-01T23:59:59Z'
+            groupBy:
+              type: string
+              description: 分组方式
+              enum: [hour, day, week, month]
+              default: day
+              example: day
+        examples:
+          dailyStats:
+            summary: 每日统计
+            value:
+              eventTypes: [user.login, user.logout]
+              from: '2024-01-01T00:00:00Z'
+              to: '2024-01-31T23:59:59Z'
+              groupBy: day
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/event.yaml#/EventStatsResponse'
+          examples:
+            success:
+              summary: 统计结果
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - eventType: user.login
+                    totalEvents: 1000
+                    successfulEvents: 950
+                    failedEvents: 50
+                    avgProcessingTime: 125.5
+                    lastEventTime: '2024-01-01T23:59:59Z'
+                    eventsByHour:
+                      - hour: '2024-01-01T00:00:00Z'
+                        count: 42
+                      - hour: '2024-01-01T01:00:00Z'
+                        count: 38
+                      - hour: '2024-01-01T02:00:00Z'
+                        count: 35
+                  - eventType: user.logout
+                    totalEvents: 800
+                    successfulEvents: 790
+                    failedEvents: 10
+                    avgProcessingTime: 95.2
+                    lastEventTime: '2024-01-01T23:58:30Z'
+                    eventsByHour:
+                      - hour: '2024-01-01T00:00:00Z'
+                        count: 35
+                      - hour: '2024-01-01T01:00:00Z'
+                        count: 32
+                      - hour: '2024-01-01T02:00:00Z'
+                        count: 28
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 事件系统
+  summary: 清除事件日志
+  description: |
+    清除历史事件日志。
+
+    **认证**: 需要Bearer Token
+
+    **警告**: 此操作不可逆
+
+    **说明**:
+    - 支持按时间范围清除
+    - 支持按事件类型清除
+    - 支持按状态清除
+  operationId: clearEventLogs
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: before
+      in: query
+      required: false
+      description: 清除此时间之前的日志
+      schema:
+        type: string
+        format: date-time
+      example: '2024-01-01T00:00:00Z'
+    - name: eventType
+      in: query
+      required: false
+      description: 事件类型
+      schema:
+        type: string
+      example: user.*
+    - name: status
+      in: query
+      required: false
+      description: 状态
+      schema:
+        type: string
+        enum: [success, failure, timeout, cancelled]
+      example: success
+  responses:
+    '200':
+      description: 清除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      deletedCount:
+                        type: integer
+                        description: 删除的日志数量
+                        example: 1500
+          examples:
+            success:
+              summary: 清除成功
+              value:
+                success: true
+                code: 200
+                message: 清除成功
+                data:
+                  deletedCount: 1500
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

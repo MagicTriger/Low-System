@@ -1,0 +1,11 @@
+# 忽略打包后的文件
+openapi-bundled.yaml
+openapi-bundled.json
+
+# 忽略生成的文档
+dist/
+build/
+
+# 忽略临时文件
+*.tmp
+*.log

@@ -1,0 +1,400 @@
+post:
+  tags:
+    - 配置管理
+  summary: 创建配置监听器
+  description: |
+    创建配置变更监听器。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持监听单个或多个配置
+    - 支持通配符匹配
+    - 配置变更时触发回调
+    - 支持WebHook和内部回调
+  operationId: createConfigWatcher
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - keys
+            - callback
+          properties:
+            keys:
+              type: array
+              description: 监听的配置键（支持通配符）
+              items:
+                type: string
+              example: [app.*, system.debug]
+            callback:
+              type: string
+              description: 回调URL或函数名
+              example: https://api.example.com/webhooks/config-change
+            method:
+              type: string
+              description: HTTP方法（WebHook时使用）
+              enum: [GET, POST, PUT, PATCH]
+              default: POST
+              example: POST
+            headers:
+              type: object
+              nullable: true
+              description: 请求头（WebHook时使用）
+              additionalProperties:
+                type: string
+              example:
+                Authorization: Bearer token123
+                Content-Type: application/json
+            enabled:
+              type: boolean
+              description: 是否启用
+              default: true
+              example: true
+        examples:
+          webhookWatcher:
+            summary: WebHook监听器
+            value:
+              keys: [app.*]
+              callback: https://api.example.com/webhooks/config-change
+              method: POST
+              headers:
+                Authorization: Bearer token123
+                Content-Type: application/json
+              enabled: true
+          multiKeyWatcher:
+            summary: 多键监听器
+            value:
+              keys: [app.theme, app.language, system.debug]
+              callback: https://api.example.com/webhooks/config-change
+  responses:
+    '201':
+      description: 创建成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigWatcherResponse'
+          examples:
+            success:
+              summary: 创建成功
+              value:
+                success: true
+                code: 201
+                message: 监听器创建成功
+                data:
+                  id: watcher_001
+                  keys: [app.*, system.debug]
+                  callback: https://api.example.com/webhooks/config-change
+                  enabled: true
+                  createdAt: '2024-01-01T12:00:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+get:
+  tags:
+    - 配置管理
+  summary: 获取监听器列表
+  description: |
+    获取所有配置监听器。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回当前用户的所有监听器
+    - 支持按状态筛选
+  operationId: getConfigWatchers
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: enabled
+      in: query
+      required: false
+      description: 是否只返回已启用的监听器
+      schema:
+        type: boolean
+      example: true
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigWatcherListResponse'
+          examples:
+            success:
+              summary: 监听器列表
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - id: watcher_001
+                    keys: [app.*]
+                    callback: https://api.example.com/webhooks/config-change
+                    enabled: true
+                    createdAt: '2024-01-01T12:00:00Z'
+                  - id: watcher_002
+                    keys: [system.debug]
+                    callback: https://api.example.com/webhooks/debug-change
+                    enabled: true
+                    createdAt: '2024-01-01T12:05:00Z'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 配置管理
+  summary: 更新监听器
+  description: |
+    更新配置监听器。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持部分更新
+    - 更新后立即生效
+  operationId: updateConfigWatcher
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - id
+          properties:
+            id:
+              type: string
+              description: 监听器ID
+              example: watcher_001
+            keys:
+              type: array
+              description: 监听的配置键
+              items:
+                type: string
+              example: [app.*, system.*]
+            callback:
+              type: string
+              description: 回调URL或函数名
+              example: https://api.example.com/webhooks/config-change-v2
+            method:
+              type: string
+              description: HTTP方法
+              enum: [GET, POST, PUT, PATCH]
+              example: POST
+            headers:
+              type: object
+              nullable: true
+              description: 请求头
+              additionalProperties:
+                type: string
+            enabled:
+              type: boolean
+              description: 是否启用
+              example: true
+        examples:
+          update:
+            summary: 更新监听器
+            value:
+              id: watcher_001
+              keys: [app.*, system.*]
+              callback: https://api.example.com/webhooks/config-change-v2
+              enabled: true
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigWatcherResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 监听器不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 配置管理
+  summary: 删除监听器
+  description: |
+    删除配置监听器。
+
+    **认证**: 需要Bearer Token
+
+    **警告**: 删除后将不再接收配置变更通知
+  operationId: deleteConfigWatcher
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: query
+      required: true
+      description: 监听器ID
+      schema:
+        type: string
+      example: watcher_001
+  responses:
+    '200':
+      description: 删除成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    nullable: true
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 监听器不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+patch:
+  tags:
+    - 配置管理
+  summary: 获取配置变更历史
+  description: |
+    获取配置变更历史记录。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持按配置键筛选
+    - 支持按时间范围查询
+    - 支持分页
+  operationId: getConfigChanges
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: page
+      in: query
+      required: false
+      description: 页码
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    - name: pageSize
+      in: query
+      required: false
+      description: 每页数量
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+    - name: key
+      in: query
+      required: false
+      description: 配置键（支持通配符）
+      schema:
+        type: string
+      example: app.*
+    - name: from
+      in: query
+      required: false
+      description: 开始时间
+      schema:
+        type: string
+        format: date-time
+      example: '2024-01-01T00:00:00Z'
+    - name: to
+      in: query
+      required: false
+      description: 结束时间
+      schema:
+        type: string
+        format: date-time
+      example: '2024-01-01T23:59:59Z'
+    - name: changedBy
+      in: query
+      required: false
+      description: 变更人
+      schema:
+        type: string
+      example: admin
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigChangeListResponse'
+          examples:
+            success:
+              summary: 变更历史
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  items:
+                    - id: change_001
+                      key: app.theme
+                      oldValue: light
+                      newValue: dark
+                      changedBy: admin
+                      changedAt: '2024-01-01T12:00:00Z'
+                      reason: User preference update
+                    - id: change_002
+                      key: app.language
+                      oldValue: zh
+                      newValue: en
+                      changedBy: admin
+                      changedAt: '2024-01-01T12:05:00Z'
+                      reason: Language change
+                  total: 100
+                  page: 1
+                  pageSize: 20
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

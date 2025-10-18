@@ -1,0 +1,142 @@
+post:
+  tags:
+    - 菜单管理
+  summary: 菜单排序
+  description: |
+    批量更新菜单的排序顺序。
+
+    **认证**: 需要Bearer Token + 权限: `menu:sort`
+
+    **排序规则**:
+    - sortOrder值越小，菜单越靠前
+    - 同级菜单按sortOrder升序排列
+    - sortOrder相同时，按创建时间排序
+    - 可以批量更新多个菜单的排序
+
+    **使用场景**:
+    - 拖拽调整菜单顺序
+    - 批量调整菜单位置
+    - 菜单重新排列
+
+    **注意事项**:
+    - 只能对同一父菜单下的子菜单进行排序
+    - 排序不会改变菜单的父子关系
+    - 建议使用连续的整数作为sortOrder值
+  operationId: sortMenus
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/menu.yaml#/MenuSortRequest'
+        examples:
+          sortSiblings:
+            summary: 同级菜单排序
+            value:
+              items:
+                - id: 1
+                  sortOrder: 2
+                - id: 2
+                  sortOrder: 0
+                - id: 3
+                  sortOrder: 1
+          reorderAll:
+            summary: 重新排列
+            value:
+              items:
+                - id: 10
+                  sortOrder: 0
+                - id: 11
+                  sortOrder: 1
+                - id: 12
+                  sortOrder: 2
+                - id: 13
+                  sortOrder: 3
+  responses:
+    '200':
+      description: 排序成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      updatedCount:
+                        type: integer
+                        description: 更新的菜单数量
+                        example: 3
+                      items:
+                        type: array
+                        description: 更新后的菜单列表
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: 菜单ID
+                            sortOrder:
+                              type: integer
+                              description: 新的排序顺序
+          examples:
+            success:
+              summary: 排序成功
+              value:
+                success: true
+                code: 200
+                message: 排序成功
+                data:
+                  updatedCount: 3
+                  items:
+                    - id: 1
+                      sortOrder: 2
+                    - id: 2
+                      sortOrder: 0
+                    - id: 3
+                      sortOrder: 1
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            invalidParams:
+              summary: 参数错误
+              value:
+                success: false
+                code: 400
+                message: 请求参数错误
+                errors:
+                  - field: items
+                    message: 菜单列表不能为空
+            differentParents:
+              summary: 父菜单不同
+              value:
+                success: false
+                code: 400
+                message: 只能对同一父菜单下的子菜单进行排序
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 菜单不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            menuNotFound:
+              summary: 菜单不存在
+              value:
+                success: false
+                code: 404
+                message: 菜单ID 999 不存在

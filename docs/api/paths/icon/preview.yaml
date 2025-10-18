@@ -1,0 +1,264 @@
+get:
+  tags:
+    - 图标库
+  summary: 获取图标预览URL
+  description: |
+    获取图标的预览URL。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持多种格式（SVG、PNG、JPG等）
+    - 支持自定义尺寸
+    - 支持自定义颜色
+    - URL有效期: 24小时
+  operationId: getIconPreviewUrl
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: query
+      required: true
+      description: 图标ID
+      schema:
+        type: string
+      example: icon_home_001
+    - name: format
+      in: query
+      required: false
+      description: 图标格式
+      schema:
+        type: string
+        enum: [svg, png, jpg, webp]
+        default: svg
+      example: svg
+    - name: size
+      in: query
+      required: false
+      description: 图标尺寸（像素）
+      schema:
+        type: integer
+        minimum: 16
+        maximum: 512
+        default: 24
+      example: 48
+    - name: color
+      in: query
+      required: false
+      description: 图标颜色（十六进制）
+      schema:
+        type: string
+        pattern: '^#[0-9A-Fa-f]{6}$'
+      example: '#007bff'
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        description: 预览URL
+                        example: https://cdn.example.com/icons/preview/icon_home_001.svg?size=48&color=%23007bff&expires=1704124800
+                      expiresAt:
+                        type: string
+                        format: date-time
+                        description: 过期时间
+                        example: '2024-01-02T00:00:00Z'
+                      format:
+                        type: string
+                        description: 图标格式
+                        example: svg
+                      size:
+                        type: integer
+                        description: 图标尺寸
+                        example: 48
+                      color:
+                        type: string
+                        description: 图标颜色
+                        example: '#007bff'
+          examples:
+            svgPreview:
+              summary: SVG预览
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  url: https://cdn.example.com/icons/preview/icon_home_001.svg?size=48&color=%23007bff&expires=1704124800
+                  expiresAt: '2024-01-02T00:00:00Z'
+                  format: svg
+                  size: 48
+                  color: '#007bff'
+            pngPreview:
+              summary: PNG预览
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  url: https://cdn.example.com/icons/preview/icon_home_001.png?size=128&expires=1704124800
+                  expiresAt: '2024-01-02T00:00:00Z'
+                  format: png
+                  size: 128
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 图标不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 图标库
+  summary: 批量获取图标预览URL
+  description: |
+    批量获取多个图标的预览URL。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 最多支持同时获取100个图标
+    - 所有图标使用相同的格式和尺寸
+    - URL有效期: 24小时
+  operationId: batchGetIconPreviewUrls
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - ids
+          properties:
+            ids:
+              type: array
+              description: 图标ID列表
+              items:
+                type: string
+              maxItems: 100
+              example: ['icon_home_001', 'icon_user_001', 'icon_settings_001']
+            format:
+              type: string
+              description: 图标格式
+              enum: [svg, png, jpg, webp]
+              default: svg
+              example: svg
+            size:
+              type: integer
+              description: 图标尺寸（像素）
+              minimum: 16
+              maximum: 512
+              default: 24
+              example: 48
+            color:
+              type: string
+              description: 图标颜色（十六进制）
+              pattern: '^#[0-9A-Fa-f]{6}$'
+              example: '#007bff'
+        examples:
+          batchPreview:
+            summary: 批量获取预览
+            value:
+              ids: ['icon_home_001', 'icon_user_001', 'icon_settings_001']
+              format: svg
+              size: 48
+              color: '#007bff'
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      icons:
+                        type: array
+                        description: 图标预览信息列表
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: 图标ID
+                              example: icon_home_001
+                            url:
+                              type: string
+                              description: 预览URL
+                              example: https://cdn.example.com/icons/preview/icon_home_001.svg
+                            expiresAt:
+                              type: string
+                              format: date-time
+                              description: 过期时间
+                              example: '2024-01-02T00:00:00Z'
+                      format:
+                        type: string
+                        description: 图标格式
+                        example: svg
+                      size:
+                        type: integer
+                        description: 图标尺寸
+                        example: 48
+                      color:
+                        type: string
+                        description: 图标颜色
+                        example: '#007bff'
+          examples:
+            success:
+              summary: 批量获取成功
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  icons:
+                    - id: icon_home_001
+                      url: https://cdn.example.com/icons/preview/icon_home_001.svg?size=48&color=%23007bff&expires=1704124800
+                      expiresAt: '2024-01-02T00:00:00Z'
+                    - id: icon_user_001
+                      url: https://cdn.example.com/icons/preview/icon_user_001.svg?size=48&color=%23007bff&expires=1704124800
+                      expiresAt: '2024-01-02T00:00:00Z'
+                    - id: icon_settings_001
+                      url: https://cdn.example.com/icons/preview/icon_settings_001.svg?size=48&color=%23007bff&expires=1704124800
+                      expiresAt: '2024-01-02T00:00:00Z'
+                  format: svg
+                  size: 48
+                  color: '#007bff'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

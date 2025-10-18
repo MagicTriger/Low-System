@@ -1,0 +1,112 @@
+post:
+  tags:
+    - 菜单管理
+  summary: 挂载菜单
+  description: |
+    将菜单挂载到指定模块。
+
+    **认证**: 需要Bearer Token + 权限: `menu:mount`
+
+    **说明**:
+    - 一个菜单可以挂载到多个模块
+    - 挂载时可以指定父菜单和排序顺序
+    - 挂载后的菜单在目标模块中独立显示
+  operationId: mountMenu
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/menu.yaml#/MenuMountRequest'
+        examples:
+          mountToRoot:
+            summary: 挂载到根级别
+            value:
+              menuCode: dashboard
+              targetModule: designer
+              parentId: null
+              sortOrder: 0
+          mountToParent:
+            summary: 挂载到父菜单下
+            value:
+              menuCode: user
+              targetModule: admin
+              parentId: 2
+              sortOrder: 1
+  responses:
+    '200':
+      description: 挂载成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      menuCode:
+                        type: string
+                        description: 菜单编码
+                      targetModule:
+                        type: string
+                        description: 目标模块
+                      mountedAt:
+                        type: string
+                        format: date-time
+                        description: 挂载时间
+          examples:
+            success:
+              summary: 挂载成功
+              value:
+                success: true
+                code: 200
+                message: 挂载成功
+                data:
+                  menuCode: dashboard
+                  targetModule: designer
+                  mountedAt: '2024-01-01T12:00:00Z'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            invalidParams:
+              summary: 参数错误
+              value:
+                success: false
+                code: 400
+                message: 请求参数错误
+                errors:
+                  - field: targetModule
+                    message: 目标模块不能为空
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 菜单不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '409':
+      description: 菜单已挂载到该模块
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            alreadyMounted:
+              summary: 已挂载
+              value:
+                success: false
+                code: 409
+                message: 该菜单已挂载到目标模块

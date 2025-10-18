@@ -1,0 +1,210 @@
+post:
+  tags:
+    - 资源管理
+  summary: 生成资源预览URL
+  description: |
+    为指定资源生成预览URL。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 生成临时的预览URL
+    - 预览URL有效期默认为24小时
+    - 支持自定义有效期
+    - 预览URL可以在无需登录的情况下访问
+
+    **预览访问方式**:
+    1. 调用此接口获取预览URL
+    2. 在浏览器中打开预览URL
+    3. 系统会渲染资源内容
+    4. 预览URL过期后需要重新生成
+  operationId: generatePreviewUrl
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - resourceId
+          properties:
+            resourceId:
+              type: integer
+              description: 资源ID
+              example: 1
+            expiresIn:
+              type: integer
+              description: 有效期（秒），默认86400（24小时）
+              minimum: 60
+              maximum: 604800
+              default: 86400
+              example: 86400
+            options:
+              type: object
+              description: 预览选项
+              properties:
+                theme:
+                  type: string
+                  description: 主题
+                  enum: [light, dark]
+                  default: light
+                  example: light
+                viewport:
+                  type: string
+                  description: 视口大小
+                  enum: [desktop, tablet, mobile]
+                  default: desktop
+                  example: desktop
+        examples:
+          default:
+            summary: 默认预览
+            value:
+              resourceId: 1
+          custom:
+            summary: 自定义预览
+            value:
+              resourceId: 1
+              expiresIn: 3600
+              options:
+                theme: dark
+                viewport: mobile
+  responses:
+    '200':
+      description: 生成成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      previewUrl:
+                        type: string
+                        format: uri
+                        description: 预览URL
+                        example: https://example.com/preview/abc123def456
+                      token:
+                        type: string
+                        description: 预览令牌
+                        example: abc123def456
+                      expiresAt:
+                        type: string
+                        format: date-time
+                        description: 过期时间
+                        example: '2024-01-02T00:00:00Z'
+                      expiresIn:
+                        type: integer
+                        description: 剩余有效期（秒）
+                        example: 86400
+          examples:
+            success:
+              summary: 生成成功
+              value:
+                success: true
+                code: 200
+                message: 生成成功
+                data:
+                  previewUrl: https://example.com/preview/abc123def456
+                  token: abc123def456
+                  expiresAt: '2024-01-02T00:00:00Z'
+                  expiresIn: 86400
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            invalidParams:
+              summary: 参数错误
+              value:
+                success: false
+                code: 400
+                message: 请求参数错误
+                errors:
+                  - field: resourceId
+                    message: 资源ID不能为空
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            notFound:
+              summary: 资源不存在
+              value:
+                success: false
+                code: 404
+                message: 资源不存在
+
+get:
+  tags:
+    - 资源管理
+  summary: 访问资源预览
+  description: |
+    通过预览令牌访问资源预览。
+
+    **认证**: 不需要（使用预览令牌）
+
+    **说明**:
+    - 此接口用于实际访问预览内容
+    - 不需要登录认证
+    - 使用预览令牌进行访问控制
+    - 令牌过期后无法访问
+  operationId: accessPreview
+  security: []
+  parameters:
+    - name: token
+      in: query
+      required: true
+      description: 预览令牌
+      schema:
+        type: string
+      example: abc123def456
+  responses:
+    '200':
+      description: 预览内容
+      content:
+        text/html:
+          schema:
+            type: string
+            description: HTML内容
+          example: '<!DOCTYPE html><html>...</html>'
+    '400':
+      description: 令牌无效
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            invalidToken:
+              summary: 令牌无效
+              value:
+                success: false
+                code: 400
+                message: 预览令牌无效
+    '410':
+      description: 令牌已过期
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            expired:
+              summary: 令牌过期
+              value:
+                success: false
+                code: 410
+                message: 预览令牌已过期，请重新生成

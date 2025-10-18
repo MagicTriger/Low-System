@@ -6,23 +6,14 @@
         <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }">
           <!-- 头像 -->
           <a-form-item label="头像">
-            <div class="avatar-upload">
-              <a-avatar :size="80" :src="formData.avatar">
-                <template #icon><user-outlined /></template>
-              </a-avatar>
-              <div class="avatar-actions">
-                <a-upload :show-upload-list="false" :before-upload="handleAvatarUpload" accept="image/*">
-                  <a-button type="link" size="small">
-                    <upload-outlined />
-                    上传头像
-                  </a-button>
-                </a-upload>
-                <a-button type="link" size="small" danger @click="handleRemoveAvatar">
-                  <delete-outlined />
-                  移除头像
-                </a-button>
-              </div>
-            </div>
+            <AvatarManager
+              :current-avatar="formData.avatar"
+              :size="80"
+              @upload-success="handleAvatarUploadSuccess"
+              @upload-error="handleAvatarUploadError"
+              @delete-success="handleAvatarDeleteSuccess"
+              @delete-error="handleAvatarDeleteError"
+            />
           </a-form-item>
 
           <!-- 用户名 -->
@@ -84,8 +75,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { UserOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import type { UploadProps } from 'ant-design-vue'
+import AvatarManager from '@/core/components/AvatarManager.vue'
 
 interface Props {
   visible: boolean
@@ -152,35 +142,70 @@ watch(
   }
 )
 
-// 处理头像上传
-const handleAvatarUpload: UploadProps['beforeUpload'] = file => {
-  const isImage = file.type.startsWith('image/')
-  if (!isImage) {
-    message.error('只能上传图片文件！')
-    return false
+// 处理头像上传成功
+function handleAvatarUploadSuccess(data: { avatarUrl: string; thumbnailUrl: string }) {
+  formData.value.avatar = data.avatarUrl
+  message.success('头像上传成功')
+
+  // 立即更新状态管理中的用户信息
+  const stateManager = getStateManager()
+  if (stateManager) {
+    const authState = stateManager.getState('auth')
+    if (authState?.userInfo) {
+      const updatedUserInfo = {
+        ...authState.userInfo,
+        avatar: data.avatarUrl,
+      }
+
+      stateManager.commit('auth/setAuthData', {
+        accessToken: authState.accessToken,
+        tokenType: authState.tokenType,
+        userInfo: updatedUserInfo,
+        permissionInfo: authState.permissionInfo,
+        loginStatusInfo: authState.loginStatusInfo,
+      })
+    }
   }
 
-  const isLt2M = file.size / 1024 / 1024 < 2
-  if (!isLt2M) {
-    message.error('图片大小不能超过 2MB！')
-    return false
-  }
-
-  // 读取文件并转换为 base64
-  const reader = new FileReader()
-  reader.onload = e => {
-    formData.value.avatar = e.target?.result as string
-    message.success('头像已更新，请点击保存按钮')
-  }
-  reader.readAsDataURL(file)
-
-  return false // 阻止自动上传
+  emit('success')
 }
 
-// 移除头像
-function handleRemoveAvatar() {
+// 处理头像上传失败
+function handleAvatarUploadError(error: string) {
+  message.error('头像上传失败: ' + error)
+}
+
+// 处理头像删除成功
+function handleAvatarDeleteSuccess() {
   formData.value.avatar = ''
-  message.success('头像已移除，请点击保存按钮')
+  message.success('头像已删除')
+
+  // 立即更新状态管理中的用户信息
+  const stateManager = getStateManager()
+  if (stateManager) {
+    const authState = stateManager.getState('auth')
+    if (authState?.userInfo) {
+      const updatedUserInfo = {
+        ...authState.userInfo,
+        avatar: '',
+      }
+
+      stateManager.commit('auth/setAuthData', {
+        accessToken: authState.accessToken,
+        tokenType: authState.tokenType,
+        userInfo: updatedUserInfo,
+        permissionInfo: authState.permissionInfo,
+        loginStatusInfo: authState.loginStatusInfo,
+      })
+    }
+  }
+
+  emit('success')
+}
+
+// 处理头像删除失败
+function handleAvatarDeleteError(error: string) {
+  message.error('头像删除失败: ' + error)
 }
 
 // 保存用户信息

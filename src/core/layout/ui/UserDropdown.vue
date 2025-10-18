@@ -1,34 +1,71 @@
 <template>
-  <a-dropdown placement="bottomRight" :trigger="['click']">
-    <div class="unified-layout-user-info">
-      <a-avatar :size="32" :src="userInfo.avatar" :style="{ backgroundColor: userInfo.avatar ? 'transparent' : '#f6bb42' }">
-        <template v-if="!userInfo.avatar">
-          {{ getUserInitial(userInfo.name) }}
-        </template>
-      </a-avatar>
-      <span class="unified-layout-user-name">
-        {{ userInfo.name }}
-      </span>
-      <DownOutlined class="unified-layout-user-arrow" />
-    </div>
-    <template #overlay>
-      <a-menu @click="handleMenuClick">
-        <template v-for="item in menuItems" :key="item.key">
-          <a-menu-divider v-if="item.divider" />
-          <a-menu-item v-else :key="item.key">
-            <template #icon>
-              <component :is="item.icon" v-if="item.icon" />
-            </template>
-            {{ item.label }}
-          </a-menu-item>
-        </template>
-      </a-menu>
-    </template>
-  </a-dropdown>
+  <div>
+    <a-dropdown placement="bottomRight" :trigger="['click']">
+      <div class="unified-layout-user-info">
+        <a-avatar
+          :size="32"
+          :src="userInfo.avatar"
+          :style="{ backgroundColor: userInfo.avatar ? 'transparent' : '#f6bb42' }"
+          class="user-avatar"
+        >
+          <template v-if="!userInfo.avatar">
+            {{ getUserInitial(userInfo.name) }}
+          </template>
+        </a-avatar>
+        <span class="unified-layout-user-name">
+          {{ userInfo.name }}
+        </span>
+        <DownOutlined class="unified-layout-user-arrow" />
+      </div>
+      <template #overlay>
+        <a-menu @click="handleMenuClick">
+          <template v-for="item in computedMenuItems" :key="item.key">
+            <a-menu-divider v-if="item.divider" />
+            <a-menu-item v-else :key="item.key" :disabled="loading">
+              <template #icon>
+                <UserOutlined v-if="item.icon === 'UserOutlined'" />
+                <CameraOutlined v-else-if="item.icon === 'CameraOutlined'" />
+                <SettingOutlined v-else-if="item.icon === 'SettingOutlined'" />
+                <LogoutOutlined v-else-if="item.icon === 'LogoutOutlined'" />
+              </template>
+              {{ item.label }}
+            </a-menu-item>
+          </template>
+        </a-menu>
+      </template>
+    </a-dropdown>
+
+    <!-- 头像管理弹窗 -->
+    <transition name="avatar-modal">
+      <a-modal
+        v-if="showAvatarManager"
+        v-model:open="showAvatarManager"
+        title="头像管理"
+        :footer="null"
+        :width="600"
+        :maskClosable="!loading"
+        :closable="!loading"
+        @cancel="handleModalClose"
+      >
+        <a-spin :spinning="loading" tip="处理中...">
+          <AvatarManager
+            :current-avatar="userInfo.avatar"
+            @upload-success="handleAvatarUploadSuccess"
+            @upload-error="handleAvatarUploadError"
+            @delete-success="handleAvatarDeleteSuccess"
+            @delete-error="handleAvatarDeleteError"
+          />
+        </a-spin>
+      </a-modal>
+    </transition>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { DownOutlined, UserOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+import { ref, computed } from 'vue'
+import { message } from 'ant-design-vue'
+import { DownOutlined, UserOutlined, CameraOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+import AvatarManager from '@/core/components/AvatarManager.vue'
 import type { UserInfo, UserMenuItem } from '../types'
 
 interface Props {
@@ -63,7 +100,15 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'menu-click': [action: string]
+  'avatar-updated': [avatarUrl: string]
 }>()
+
+// 状态管理
+const showAvatarManager = ref(false)
+const loading = ref(false)
+
+// 直接使用传入的菜单项
+const computedMenuItems = computed(() => props.menuItems || [])
 
 const getUserInitial = (name: string): string => {
   if (!name) return 'U'
@@ -74,7 +119,44 @@ const getUserInitial = (name: string): string => {
 }
 
 const handleMenuClick = (info: any) => {
-  emit('menu-click', String(info.key))
+  const key = String(info.key)
+
+  if (key === 'avatar') {
+    showAvatarManager.value = true
+  } else {
+    emit('menu-click', key)
+  }
+}
+
+const handleModalClose = () => {
+  if (!loading.value) {
+    showAvatarManager.value = false
+  }
+}
+
+const handleAvatarUploadSuccess = (data: { avatarUrl: string; thumbnailUrl: string }) => {
+  loading.value = false
+  emit('avatar-updated', data.avatarUrl)
+  showAvatarManager.value = false
+  message.success('头像上传成功', 2)
+}
+
+const handleAvatarUploadError = (error: string) => {
+  loading.value = false
+  console.error('头像上传错误:', error)
+  message.error(error || '头像上传失败，请重试', 3)
+}
+
+const handleAvatarDeleteSuccess = () => {
+  loading.value = false
+  emit('avatar-updated', '')
+  showAvatarManager.value = false
+  message.success('头像删除成功', 2)
+}
+
+const handleAvatarDeleteError = (error: string) => {
+  loading.value = false
+  message.error(error || '头像删除失败，请重试', 3)
 }
 </script>
 
@@ -114,6 +196,39 @@ const handleMenuClick = (info: any) => {
   transform: rotate(180deg);
 }
 
+/* 头像更新动画 */
+.user-avatar {
+  transition: all 0.5s ease;
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
+}
+
+/* 弹窗动画 */
+.avatar-modal-enter-active,
+.avatar-modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.avatar-modal-enter-from,
+.avatar-modal-leave-to {
+  opacity: 0;
+}
+
+.avatar-modal-enter-active :deep(.ant-modal),
+.avatar-modal-leave-active :deep(.ant-modal) {
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.avatar-modal-enter-from :deep(.ant-modal),
+.avatar-modal-leave-to :deep(.ant-modal) {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
 @media (max-width: 768px) {
   .unified-layout-user-name {
     display: none;
@@ -131,6 +246,7 @@ const handleMenuClick = (info: any) => {
 
 :deep(.ant-dropdown-menu-item) {
   padding: 8px 16px;
+  transition: background 0.2s ease;
 }
 
 :deep(.ant-dropdown-menu-item:hover) {
@@ -139,5 +255,24 @@ const handleMenuClick = (info: any) => {
 
 :deep(.ant-dropdown-menu-item-icon) {
   margin-right: 8px;
+}
+
+:deep(.ant-dropdown-menu-item-disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 加载状态优化 */
+:deep(.ant-spin-nested-loading) {
+  min-height: 200px;
+}
+
+:deep(.ant-spin-container) {
+  transition: opacity 0.3s ease;
+}
+
+:deep(.ant-spin-blur) {
+  opacity: 0.5;
+  pointer-events: none;
 }
 </style>

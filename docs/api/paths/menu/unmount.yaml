@@ -1,0 +1,74 @@
+post:
+  tags:
+    - 菜单管理
+  summary: 取消挂载菜单
+  description: |
+    将菜单从指定模块取消挂载。
+
+    **认证**: 需要Bearer Token + 权限: `menu:unmount`
+
+    **说明**:
+    - 取消挂载后，菜单在该模块中不再显示
+    - 不影响菜单在其他模块的挂载状态
+    - 不会删除菜单本身
+  operationId: unmountMenu
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/menu.yaml#/MenuUnmountRequest'
+        examples:
+          unmount:
+            summary: 取消挂载
+            value:
+              menuCode: dashboard
+              module: designer
+  responses:
+    '200':
+      description: 取消挂载成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    nullable: true
+          examples:
+            success:
+              summary: 取消挂载成功
+              value:
+                success: true
+                code: 200
+                message: 取消挂载成功
+                data: null
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 菜单未挂载到该模块
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            notMounted:
+              summary: 未挂载
+              value:
+                success: false
+                code: 404
+                message: 该菜单未挂载到指定模块

@@ -1,0 +1,250 @@
+# 认证与授权数据模型
+
+LoginRequest:
+  type: object
+  required:
+    - username
+    - password
+  properties:
+    username:
+      type: string
+      description: 用户名
+      example: admin
+      minLength: 3
+      maxLength: 50
+    password:
+      type: string
+      format: password
+      description: 密码
+      example: password123
+      minLength: 6
+      maxLength: 100
+
+LoginResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/LoginResponseData'
+
+LoginResponseData:
+  type: object
+  properties:
+    accessToken:
+      type: string
+      description: 访问令牌
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    tokenType:
+      type: string
+      description: 令牌类型
+      example: Bearer
+    expiresIn:
+      type: integer
+      description: 过期时间（秒）
+      example: 7200
+    refreshToken:
+      type: string
+      description: 刷新令牌
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    userInfo:
+      $ref: '#/UserInfo'
+    permissionInfo:
+      $ref: '#/PermissionInfo'
+    loginStatusInfo:
+      $ref: '#/LoginStatusInfo'
+
+UserInfo:
+  type: object
+  properties:
+    userId:
+      type: integer
+      description: 用户ID
+      example: 1001
+    username:
+      type: string
+      description: 用户名
+      example: admin
+    displayName:
+      type: string
+      description: 显示名称
+      example: 管理员
+    email:
+      type: string
+      format: email
+      description: 邮箱
+      example: admin@example.com
+    avatar:
+      type: string
+      format: uri
+      description: 头像URL
+      example: https://example.com/avatar.jpg
+    enabled:
+      type: boolean
+      description: 是否启用
+      example: true
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+
+PermissionInfo:
+  type: object
+  properties:
+    roleIds:
+      type: array
+      description: 角色ID列表
+      items:
+        type: integer
+      example: [1, 2]
+    roleNames:
+      type: array
+      description: 角色名称列表
+      items:
+        type: string
+      example: ['管理员', '编辑者']
+    permissions:
+      type: array
+      description: 权限列表
+      items:
+        type: string
+      example: ['menu:create', 'menu:update', 'resource:delete']
+    menus:
+      type: array
+      description: 菜单列表
+      items:
+        $ref: './menu.yaml#/MenuTreeNode'
+
+RefreshTokenRequest:
+  type: object
+  required:
+    - refreshToken
+  properties:
+    refreshToken:
+      type: string
+      description: 刷新令牌
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+RefreshTokenResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+              description: 新的访问令牌
+            expiresIn:
+              type: integer
+              description: 过期时间（秒）
+
+TokenInfo:
+  type: object
+  description: 令牌信息
+  properties:
+    accessToken:
+      type: string
+      description: 访问令牌
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    tokenType:
+      type: string
+      description: 令牌类型
+      example: Bearer
+      default: Bearer
+    expiresIn:
+      type: integer
+      description: 过期时间（秒）
+      example: 7200
+    refreshToken:
+      type: string
+      description: 刷新令牌
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    refreshExpiresIn:
+      type: integer
+      description: 刷新令牌过期时间（秒）
+      example: 604800
+
+LoginStatusInfo:
+  type: object
+  description: 登录状态信息
+  properties:
+    loginTime:
+      type: string
+      format: date-time
+      description: 登录时间
+      example: '2024-01-01T12:00:00Z'
+    loginIp:
+      type: string
+      description: 登录IP地址
+      example: 192.168.1.100
+    userAgent:
+      type: string
+      description: 用户代理
+      example: Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+    sessionId:
+      type: string
+      description: 会话ID
+      example: sess_1234567890abcdef
+
+LogoutRequest:
+  type: object
+  properties:
+    allDevices:
+      type: boolean
+      description: 是否登出所有设备
+      default: false
+      example: false
+
+LogoutResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: object
+          nullable: true
+
+PermissionCheckRequest:
+  type: object
+  required:
+    - permissions
+  properties:
+    permissions:
+      type: array
+      description: 需要检查的权限列表
+      items:
+        type: string
+      example: ['menu:create', 'resource:delete']
+    requireAll:
+      type: boolean
+      description: 是否需要全部权限（true=AND, false=OR）
+      default: true
+      example: true
+
+PermissionCheckResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: object
+          properties:
+            hasPermission:
+              type: boolean
+              description: 是否拥有权限
+              example: true
+            grantedPermissions:
+              type: array
+              description: 已授予的权限列表
+              items:
+                type: string
+              example: ['menu:create', 'resource:delete']
+            deniedPermissions:
+              type: array
+              description: 被拒绝的权限列表
+              items:
+                type: string
+              example: []

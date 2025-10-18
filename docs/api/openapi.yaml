@@ -1,0 +1,183 @@
+openapi: 3.0.3
+info:
+  title: 低代码平台 API
+  description: |
+    低代码平台完整API接口文档，提供认证、资源管理、设计器、数据源等功能的RESTful API。
+
+    ## 认证方式
+    大部分API需要使用Bearer Token认证：
+    ```
+    Authorization: Bearer {accessToken}
+    ```
+
+    ## 限流策略
+    - 登录接口: 5次/分钟
+    - 文件上传: 10次/分钟
+    - 其他接口: 100次/分钟
+
+    ## 版本说明
+    当前版本: v1.0.0
+
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: 开发环境
+  - url: https://api-staging.example.com/api
+    description: 测试环境
+  - url: https://api.example.com/api
+    description: 生产环境
+
+tags:
+  - name: 认证与授权
+    description: 用户登录、登出、Token刷新、权限验证
+  - name: 菜单管理
+    description: 菜单的增删改查、树形结构、挂载管理
+  - name: 资源管理
+    description: 页面、组件、数据源等资源的CRUD操作
+  - name: 设计器
+    description: 可视化设计器相关API
+  - name: 数据源
+    description: 数据源配置、执行、绑定
+  - name: 图标库
+    description: 图标库管理、搜索、自定义图标
+  - name: 状态管理
+    description: 应用状态的持久化和同步
+  - name: 事件系统
+    description: 事件发布、订阅、配置
+  - name: 配置管理
+    description: 多环境配置、动态配置
+  - name: 文件上传
+    description: 文件上传、管理、预览
+  - name: 日志与监控
+    description: 日志记录、性能监控、错误追踪
+  - name: 版本管理
+    description: 版本控制、对比、回滚
+  - name: 通知系统
+    description: 消息推送、通知管理
+  - name: 缓存管理
+    description: 缓存操作、策略配置
+
+paths:
+  # 认证与授权
+  /auth/login:
+    $ref: './paths/auth/login.yaml'
+  /auth/logout:
+    $ref: './paths/auth/logout.yaml'
+  /auth/refresh:
+    $ref: './paths/auth/refresh.yaml'
+  /auth/permission/check:
+    $ref: './paths/auth/permission-check.yaml'
+
+  # 菜单管理
+  /permissions/menus/tree:
+    $ref: './paths/menu/tree.yaml'
+  /permissions/menus/list:
+    $ref: './paths/menu/list.yaml'
+  /permissions/menus/{id}:
+    $ref: './paths/menu/detail.yaml'
+  /permissions/menus/create:
+    $ref: './paths/menu/create.yaml'
+  /permissions/menus/update:
+    $ref: './paths/menu/update.yaml'
+  /permissions/menus/delete/{id}:
+    $ref: './paths/menu/delete.yaml'
+  /permissions/menus/mount:
+    $ref: './paths/menu/mount.yaml'
+  /permissions/menus/unmount:
+    $ref: './paths/menu/unmount.yaml'
+  /permissions/menus/mount-status:
+    $ref: './paths/menu/mount-status.yaml'
+  /permissions/menus/sort:
+    $ref: './paths/menu/sort.yaml'
+
+  # 资源管理
+  /resources:
+    $ref: './paths/resource/list.yaml'
+  /resources/tree:
+    $ref: './paths/resource/tree.yaml'
+  /resources/preview:
+    $ref: './paths/resource/preview.yaml'
+  /resources/{id}:
+    $ref: './paths/resource/detail.yaml'
+
+  # 设计器 - 画布操作
+  /designer/canvas:
+    $ref: './paths/designer/canvas.yaml'
+
+  # 设计器 - 组件操作
+  /designer/components:
+    $ref: './paths/designer/components.yaml'
+
+  # 设计器 - 组件库
+  /designer/component-library:
+    $ref: './paths/designer/component-library.yaml'
+
+  # 设计器 - 组件配置
+  /designer/component-config:
+    $ref: './paths/designer/component-config.yaml'
+
+  # 设计器 - 属性面板
+  /designer/properties:
+    $ref: './paths/designer/properties.yaml'
+
+  # 设计器 - 大纲树
+  /designer/outline:
+    $ref: './paths/designer/outline.yaml'
+
+  # 设计器 - 预览
+  /designer/preview:
+    $ref: './paths/designer/preview.yaml'
+
+  # 数据源 - CRUD
+  /datasource:
+    $ref: './paths/datasource/datasource.yaml'
+
+  # 数据源 - 测试
+  /datasource/test:
+    $ref: './paths/datasource/test.yaml'
+
+  # 数据源 - 测试查询
+  /datasource/test-query:
+    $ref: './paths/datasource/test-query.yaml'
+
+  # 数据源 - 执行
+  /datasource/execute:
+    $ref: './paths/datasource/execute.yaml'
+
+  # 数据源 - 绑定
+  /datasource/binding:
+    $ref: './paths/datasource/binding.yaml'
+
+  # 数据源 - 缓存
+  /datasource/cache:
+    $ref: './paths/datasource/cache.yaml'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 使用JWT Token进行认证
+
+  schemas:
+    $ref: './components/schemas.yaml'
+
+  parameters:
+    $ref: './components/parameters.yaml'
+
+  responses:
+    $ref: './components/responses.yaml'
+
+  examples:
+    $ref: './components/examples.yaml'
+
+security:
+  - bearerAuth: []

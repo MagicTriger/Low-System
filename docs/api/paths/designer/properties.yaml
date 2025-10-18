@@ -1,0 +1,245 @@
+get:
+  tags:
+    - 设计器
+  summary: 获取组件属性
+  description: |
+    获取指定组件的当前属性值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回组件的所有属性，包括基础属性、样式、事件等
+    - 用于属性面板显示当前值
+  operationId: getComponentProperties
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: canvasId
+      in: query
+      required: true
+      description: 画布ID
+      schema:
+        type: string
+      example: canvas_123456
+    - name: componentId
+      in: query
+      required: true
+      description: 组件ID
+      schema:
+        type: string
+      example: comp_button_001
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      basic:
+                        type: object
+                        description: 基础属性
+                        properties:
+                          id:
+                            type: string
+                            example: comp_button_001
+                          type:
+                            type: string
+                            example: button
+                          name:
+                            type: string
+                            example: 提交按钮
+                      layout:
+                        type: object
+                        description: 布局属性
+                        properties:
+                          position:
+                            $ref: '../../schemas/designer.yaml#/Position'
+                          size:
+                            $ref: '../../schemas/designer.yaml#/Size'
+                          zIndex:
+                            type: integer
+                            example: 1
+                      style:
+                        $ref: '../../schemas/designer.yaml#/ComponentStyle'
+                      props:
+                        type: object
+                        description: 组件特定属性
+                        additionalProperties: true
+                      events:
+                        type: object
+                        description: 事件绑定
+                        additionalProperties:
+                          type: string
+          examples:
+            buttonProperties:
+              summary: 按钮组件属性
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  basic:
+                    id: comp_button_001
+                    type: button
+                    name: 提交按钮
+                  layout:
+                    position:
+                      x: 100
+                      y: 50
+                    size:
+                      width: 120
+                      height: 40
+                    zIndex: 1
+                  style:
+                    backgroundColor: '#007bff'
+                    color: '#ffffff'
+                    fontSize: 14
+                    borderRadius: 4
+                  props:
+                    text: 提交
+                    type: primary
+                    disabled: false
+                  events:
+                    onClick: handleSubmit
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 组件不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 设计器
+  summary: 更新组件属性
+  description: |
+    更新指定组件的属性值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持批量更新多个属性
+    - 支持部分更新
+    - 更新后自动触发画布重新渲染
+  operationId: updateComponentProperties
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - canvasId
+            - componentId
+            - properties
+          properties:
+            canvasId:
+              type: string
+              description: 画布ID
+              example: canvas_123456
+            componentId:
+              type: string
+              description: 组件ID
+              example: comp_button_001
+            properties:
+              type: object
+              description: 要更新的属性
+              properties:
+                layout:
+                  type: object
+                  description: 布局属性
+                  properties:
+                    position:
+                      $ref: '../../schemas/designer.yaml#/Position'
+                    size:
+                      $ref: '../../schemas/designer.yaml#/Size'
+                    zIndex:
+                      type: integer
+                style:
+                  $ref: '../../schemas/designer.yaml#/ComponentStyle'
+                props:
+                  type: object
+                  description: 组件特定属性
+                  additionalProperties: true
+                events:
+                  type: object
+                  description: 事件绑定
+                  additionalProperties:
+                    type: string
+        examples:
+          updateStyle:
+            summary: 更新样式属性
+            value:
+              canvasId: canvas_123456
+              componentId: comp_button_001
+              properties:
+                style:
+                  backgroundColor: '#28a745'
+                  fontSize: 16
+          updateProps:
+            summary: 更新组件属性
+            value:
+              canvasId: canvas_123456
+              componentId: comp_button_001
+              properties:
+                props:
+                  text: 确认提交
+                  disabled: false
+          updateMultiple:
+            summary: 批量更新多个属性
+            value:
+              canvasId: canvas_123456
+              componentId: comp_button_001
+              properties:
+                layout:
+                  position:
+                    x: 150
+                    y: 100
+                  size:
+                    width: 140
+                    height: 45
+                style:
+                  backgroundColor: '#dc3545'
+                  color: '#ffffff'
+                props:
+                  text: 删除
+                  type: danger
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/designer.yaml#/ComponentInstanceResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 组件不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

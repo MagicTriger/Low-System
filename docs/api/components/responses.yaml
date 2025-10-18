@@ -1,0 +1,74 @@
+# 可复用响应
+
+UnauthorizedError:
+  description: 未授权
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+      examples:
+        unauthorized:
+          summary: Token无效或已过期
+          value:
+            success: false
+            code: 401
+            message: 未授权，请重新登录
+
+ForbiddenError:
+  description: 权限不足
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+      examples:
+        forbidden:
+          summary: 权限不足
+          value:
+            success: false
+            code: 403
+            message: 权限不足，无法执行此操作
+
+NotFoundError:
+  description: 资源不存在
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+      examples:
+        notFound:
+          summary: 资源不存在
+          value:
+            success: false
+            code: 404
+            message: 请求的资源不存在
+
+BadRequestError:
+  description: 请求参数错误
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+      examples:
+        badRequest:
+          summary: 参数错误
+          value:
+            success: false
+            code: 400
+            message: 请求参数错误
+            errors:
+              - field: name
+                message: 名称不能为空
+
+InternalServerError:
+  description: 服务器内部错误
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+      examples:
+        serverError:
+          summary: 服务器错误
+          value:
+            success: false
+            code: 500
+            message: 服务器内部错误，请稍后重试

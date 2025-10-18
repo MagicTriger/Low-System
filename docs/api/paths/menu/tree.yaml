@@ -1,0 +1,72 @@
+get:
+  tags:
+    - 菜单管理
+  summary: 获取菜单树
+  description: |
+    获取当前用户有权限访问的菜单树形结构。
+
+    **认证**: 需要Bearer Token
+  operationId: getMenuTree
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '../../schemas/menu.yaml#/MenuTreeNode'
+          examples:
+            success:
+              summary: 菜单树
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - id: 1
+                    parentId: null
+                    menuCode: dashboard
+                    name: 仪表板
+                    module: admin
+                    nodeType: 2
+                    sortOrder: 0
+                    url: /dashboard
+                    icon: dashboard
+                    path: /admin/dashboard
+                    children: []
+                  - id: 2
+                    parentId: null
+                    menuCode: system
+                    name: 系统管理
+                    module: admin
+                    nodeType: 1
+                    sortOrder: 1
+                    url: null
+                    icon: setting
+                    path: null
+                    children:
+                      - id: 3
+                        parentId: 2
+                        menuCode: user
+                        name: 用户管理
+                        module: admin
+                        nodeType: 2
+                        sortOrder: 0
+                        url: /system/user
+                        icon: user
+                        path: /admin/system/user
+                        children: []
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

@@ -76,6 +76,15 @@ export const authModule: IStateModule<AuthState> = {
         state.isAuthenticated = true
       }
     },
+
+    SET_USER_AVATAR(state, avatarUrl: string) {
+      if (state.userInfo) {
+        state.userInfo.avatar = avatarUrl
+
+        // 更新localStorage中的用户信息
+        localStorage.setItem('userInfo', JSON.stringify(state.userInfo))
+      }
+    },
   },
 
   actions: {
@@ -119,6 +128,17 @@ export const authModule: IStateModule<AuthState> = {
     async checkAuth({ commit }) {
       // 从localStorage恢复认证状态
       commit('RESTORE_AUTH_DATA')
+    },
+
+    async updateUserAvatar({ commit }, avatarUrl: string) {
+      try {
+        // 更新本地状态
+        commit('SET_USER_AVATAR', avatarUrl)
+        return { success: true }
+      } catch (error) {
+        console.error('更新用户头像失败:', error)
+        throw error
+      }
     },
   },
 

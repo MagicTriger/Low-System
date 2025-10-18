@@ -12,6 +12,7 @@
         @notification-click="handleNotificationClick"
         @settings-click="handleSettingsClick"
         @user-action="handleUserAction"
+        @avatar-updated="handleAvatarUpdated"
       >
         <template #left>
           <slot name="header-left" />
@@ -86,6 +87,7 @@ const emit = defineEmits<{
   'notification-click': []
   'settings-click': []
   'user-action': [action: string]
+  'avatar-updated': [avatarUrl: string]
 }>()
 
 // 路由
@@ -169,6 +171,13 @@ const handleSettingsClick = () => {
  */
 const handleUserAction = (action: string) => {
   emit('user-action', action)
+}
+
+/**
+ * 处理头像更新
+ */
+const handleAvatarUpdated = (avatarUrl: string) => {
+  emit('avatar-updated', avatarUrl)
 }
 
 /**

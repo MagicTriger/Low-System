@@ -1,0 +1,438 @@
+# 状态管理相关数据模型
+
+StateModule:
+  type: object
+  description: 状态模块
+  required:
+    - id
+    - name
+    - namespace
+  properties:
+    id:
+      type: string
+      description: 模块ID
+      example: module_user_001
+    name:
+      type: string
+      description: 模块名称
+      maxLength: 100
+      example: 用户状态模块
+    namespace:
+      type: string
+      description: 命名空间
+      pattern: '^[a-zA-Z][a-zA-Z0-9_]*$'
+      maxLength: 50
+      example: user
+    description:
+      type: string
+      nullable: true
+      description: 模块描述
+      maxLength: 500
+      example: 管理用户相关的状态数据
+    state:
+      type: object
+      description: 状态数据
+      additionalProperties: true
+      example:
+        currentUser: null
+        isLoggedIn: false
+        permissions: []
+    getters:
+      type: object
+      nullable: true
+      description: 计算属性定义
+      additionalProperties:
+        type: string
+      example:
+        isAdmin: "state.currentUser?.role === 'admin'"
+        hasPermission: '(state) => (permission) => state.permissions.includes(permission)'
+    mutations:
+      type: array
+      nullable: true
+      description: 同步修改方法
+      items:
+        type: string
+      example: ['SET_USER', 'SET_PERMISSIONS', 'CLEAR_USER']
+    actions:
+      type: array
+      nullable: true
+      description: 异步操作方法
+      items:
+        type: string
+      example: ['login', 'logout', 'fetchPermissions']
+    isolated:
+      type: boolean
+      description: 是否隔离（不与其他模块共享状态）
+      default: false
+      example: false
+    persistent:
+      type: boolean
+      description: 是否持久化
+      default: false
+      example: true
+    persistKey:
+      type: string
+      nullable: true
+      description: 持久化存储键
+      example: user_state
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+      example: '2024-01-01T00:00:00Z'
+
+State:
+  type: object
+  description: 状态数据
+  required:
+    - namespace
+    - data
+  properties:
+    namespace:
+      type: string
+      description: 命名空间
+      example: user
+    data:
+      type: object
+      description: 状态数据
+      additionalProperties: true
+      example:
+        currentUser:
+          id: user_001
+          name: 张三
+          role: admin
+        isLoggedIn: true
+        permissions: ['read', 'write', 'delete']
+    version:
+      type: integer
+      description: 版本号
+      example: 5
+    lastModified:
+      type: string
+      format: date-time
+      description: 最后修改时间
+      example: '2024-01-01T12:00:00Z'
+
+StateMutation:
+  type: object
+  description: 状态修改
+  required:
+    - namespace
+    - type
+  properties:
+    namespace:
+      type: string
+      description: 命名空间
+      example: user
+    type:
+      type: string
+      description: 修改类型
+      example: SET_USER
+    payload:
+      description: 修改数据
+      example:
+        id: user_001
+        name: 张三
+        role: admin
+    timestamp:
+      type: string
+      format: date-time
+      description: 修改时间
+      example: '2024-01-01T12:00:00Z'
+
+StateAction:
+  type: object
+  description: 状态操作
+  required:
+    - namespace
+    - type
+  properties:
+    namespace:
+      type: string
+      description: 命名空间
+      example: user
+    type:
+      type: string
+      description: 操作类型
+      example: login
+    payload:
+      description: 操作参数
+      example:
+        username: admin
+        password: '******'
+    async:
+      type: boolean
+      description: 是否异步
+      default: true
+      example: true
+
+StateSnapshot:
+  type: object
+  description: 状态快照
+  required:
+    - id
+    - timestamp
+    - state
+  properties:
+    id:
+      type: string
+      description: 快照ID
+      example: snapshot_001
+    name:
+      type: string
+      nullable: true
+      description: 快照名称
+      maxLength: 100
+      example: 登录后状态
+    description:
+      type: string
+      nullable: true
+      description: 快照描述
+      maxLength: 500
+      example: 用户登录成功后的完整状态
+    timestamp:
+      type: string
+      format: date-time
+      description: 快照时间
+      example: '2024-01-01T12:00:00Z'
+    state:
+      type: object
+      description: 完整状态数据
+      additionalProperties: true
+      example:
+        user:
+          currentUser:
+            id: user_001
+            name: 张三
+          isLoggedIn: true
+        app:
+          theme: dark
+          language: zh-CN
+    modules:
+      type: array
+      description: 包含的模块
+      items:
+        type: string
+      example: ['user', 'app', 'designer']
+    size:
+      type: integer
+      description: 快照大小（字节）
+      example: 2048
+    compressed:
+      type: boolean
+      description: 是否压缩
+      default: false
+      example: false
+
+StateSubscription:
+  type: object
+  description: 状态订阅
+  required:
+    - id
+    - namespace
+    - callback
+  properties:
+    id:
+      type: string
+      description: 订阅ID
+      example: sub_001
+    namespace:
+      type: string
+      description: 命名空间（支持通配符）
+      example: user.*
+    path:
+      type: string
+      nullable: true
+      description: 监听的状态路径
+      example: currentUser.name
+    callback:
+      type: string
+      description: 回调函数标识
+      example: onUserChange
+    immediate:
+      type: boolean
+      description: 是否立即执行
+      default: false
+      example: false
+    deep:
+      type: boolean
+      description: 是否深度监听
+      default: false
+      example: true
+    filter:
+      type: string
+      nullable: true
+      description: 过滤条件（JavaScript表达式）
+      example: newValue !== oldValue
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T12:00:00Z'
+
+StatePersistConfig:
+  type: object
+  description: 状态持久化配置
+  required:
+    - namespace
+    - enabled
+  properties:
+    namespace:
+      type: string
+      description: 命名空间
+      example: user
+    enabled:
+      type: boolean
+      description: 是否启用持久化
+      example: true
+    storage:
+      type: string
+      description: 存储类型
+      enum: [localStorage, sessionStorage, indexedDB, cookie]
+      default: localStorage
+      example: localStorage
+    key:
+      type: string
+      description: 存储键
+      example: app_user_state
+    paths:
+      type: array
+      nullable: true
+      description: 需要持久化的路径（为空则全部持久化）
+      items:
+        type: string
+      example: ['currentUser', 'preferences']
+    excludePaths:
+      type: array
+      nullable: true
+      description: 排除的路径
+      items:
+        type: string
+      example: ['temporaryData', 'cache']
+    encryption:
+      type: boolean
+      description: 是否加密
+      default: false
+      example: true
+    ttl:
+      type: integer
+      nullable: true
+      description: 过期时间（秒）
+      minimum: 60
+      example: 86400
+    version:
+      type: string
+      description: 版本号
+      example: '1.0.0'
+
+StateHistory:
+  type: object
+  description: 状态历史记录
+  properties:
+    namespace:
+      type: string
+      description: 命名空间
+      example: user
+    entries:
+      type: array
+      description: 历史条目
+      items:
+        type: object
+        properties:
+          timestamp:
+            type: string
+            format: date-time
+            example: '2024-01-01T12:00:00Z'
+          type:
+            type: string
+            description: 操作类型
+            example: mutation
+          name:
+            type: string
+            description: 操作名称
+            example: SET_USER
+          payload:
+            description: 操作数据
+          stateBefore:
+            type: object
+            description: 操作前状态
+            additionalProperties: true
+          stateAfter:
+            type: object
+            description: 操作后状态
+            additionalProperties: true
+    maxSize:
+      type: integer
+      description: 最大记录数
+      example: 50
+    currentIndex:
+      type: integer
+      description: 当前索引
+      example: 10
+
+# 请求和响应模型
+
+StateModuleResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/StateModule'
+
+StateModuleListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/StateModule'
+
+StateResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/State'
+
+StateSnapshotResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/StateSnapshot'
+
+StateSnapshotListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/StateSnapshot'
+
+StateSubscriptionResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/StateSubscription'
+
+StateHistoryResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/StateHistory'

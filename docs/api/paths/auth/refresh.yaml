@@ -1,0 +1,54 @@
+post:
+  tags:
+    - 认证与授权
+  summary: 刷新访问令牌
+  description: |
+    使用刷新令牌获取新的访问令牌。
+
+    **刷新策略**:
+    - Access Token有效期: 2小时
+    - Refresh Token有效期: 7天
+    - 建议在Access Token过期前5分钟刷新
+  operationId: refreshToken
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/auth.yaml#/RefreshTokenRequest'
+        examples:
+          refresh:
+            summary: 刷新令牌
+            value:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  responses:
+    '200':
+      description: 刷新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/auth.yaml#/RefreshTokenResponse'
+          examples:
+            success:
+              summary: 刷新成功
+              value:
+                success: true
+                code: 200
+                message: 刷新成功
+                data:
+                  accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  expiresIn: 7200
+    '401':
+      description: 刷新令牌无效或已过期
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            invalidToken:
+              summary: 令牌无效
+              value:
+                success: false
+                code: 401
+                message: 刷新令牌无效或已过期，请重新登录

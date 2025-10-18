@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API文档 - 版本选择</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 800px;
+        width: 100%;
+        padding: 40px;
+      }
+
+      h1 {
+        color: #1890ff;
+        margin-bottom: 10px;
+        font-size: 32px;
+      }
+
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 16px;
+      }
+
+      .version-list {
+        display: grid;
+        gap: 15px;
+      }
+
+      .version-card {
+        border: 2px solid #e8e8e8;
+        border-radius: 8px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .version-card:hover {
+        border-color: #1890ff;
+        box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+        transform: translateY(-2px);
+      }
+
+      .version-card.current {
+        border-color: #52c41a;
+        background: #f6ffed;
+      }
+
+      .version-card.deprecated {
+        border-color: #ff4d4f;
+        background: #fff1f0;
+        opacity: 0.7;
+      }
+
+      .version-info {
+        flex: 1;
+      }
+
+      .version-number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      .version-date {
+        color: #999;
+        font-size: 14px;
+      }
+
+      .version-status {
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .status-current {
+        background: #52c41a;
+        color: white;
+      }
+
+      .status-supported {
+        background: #1890ff;
+        color: white;
+      }
+
+      .status-deprecated {
+        background: #ff4d4f;
+        color: white;
+      }
+
+      .version-features {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #e8e8e8;
+      }
+
+      .feature-tag {
+        display: inline-block;
+        background: #f0f0f0;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        margin-right: 5px;
+        margin-top: 5px;
+        color: #666;
+      }
+
+      .footer {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e8e8e8;
+        text-align: center;
+        color: #999;
+        font-size: 14px;
+      }
+
+      .footer a {
+        color: #1890ff;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📚 API 文档</h1>
+      <p class="subtitle">选择要查看的API版本</p>
+
+      <div class="version-list" id="versionList">
+        <!-- 版本列表将通过JavaScript动态生成 -->
+      </div>
+
+      <div class="footer">
+        <p>
+          <a href="./README.md" target="_blank">文档说明</a> | <a href="./versions/VERSION_GUIDE.md" target="_blank">版本管理指南</a> |
+          <a href="https://github.com/your-repo" target="_blank">GitHub</a>
+        </p>
+        <p style="margin-top: 10px">© 2024 低代码平台. All rights reserved.</p>
+      </div>
+    </div>
+
+    <script>
+      // 版本数据
+      const versions = [
+        {
+          version: '1.0.0',
+          status: 'current',
+          releaseDate: '2024-01-01',
+          features: ['认证与授权', '菜单管理', '资源管理'],
+          url: './swagger-ui.html',
+        },
+        // 可以添加更多版本
+        // {
+        //   version: '0.9.0',
+        //   status: 'deprecated',
+        //   releaseDate: '2023-12-01',
+        //   features: ['基础功能'],
+        //   url: './swagger-ui.html?url=./versions/v0.9/openapi.yaml'
+        // }
+      ]
+
+      // 状态标签映射
+      const statusLabels = {
+        current: { text: '当前版本', class: 'status-current' },
+        supported: { text: '支持中', class: 'status-supported' },
+        deprecated: { text: '已废弃', class: 'status-deprecated' },
+      }
+
+      // 渲染版本列表
+      function renderVersions() {
+        const container = document.getElementById('versionList')
+
+        versions.forEach(version => {
+          const card = document.createElement('div')
+          card.className = `version-card ${version.status}`
+          card.onclick = () => (window.location.href = version.url)
+
+          const statusLabel = statusLabels[version.status]
+
+          card.innerHTML = `
+          <div class="version-info">
+            <div class="version-number">v${version.version}</div>
+            <div class="version-date">发布日期: ${version.releaseDate}</div>
+            ${
+              version.features
+                ? `
+              <div class="version-features">
+                ${version.features.map(f => `<span class="feature-tag">${f}</span>`).join('')}
+              </div>
+            `
+                : ''
+            }
+          </div>
+          <div class="version-status ${statusLabel.class}">
+            ${statusLabel.text}
+          </div>
+        `
+
+          container.appendChild(card)
+        })
+      }
+
+      // 页面加载时渲染
+      renderVersions()
+    </script>
+  </body>
+</html>

@@ -1,0 +1,127 @@
+get:
+  tags:
+    - 资源管理
+  summary: 获取资源详情
+  description: |
+    获取指定资源的详细信息。
+
+    **认证**: 需要Bearer Token
+  operationId: getResourceDetail
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: 资源ID
+      schema:
+        type: integer
+      example: 1
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '../../schemas/resource.yaml#/Resource'
+    '404':
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 资源管理
+  summary: 更新资源
+  description: |
+    更新指定资源的信息。
+
+    **认证**: 需要Bearer Token + 权限: `resource:update`
+  operationId: updateResource
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: 资源ID
+      schema:
+        type: integer
+      example: 1
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/resource.yaml#/ResourceUpdateRequest'
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/SuccessResponse'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 资源管理
+  summary: 删除资源
+  description: |
+    删除指定的资源。
+
+    **认证**: 需要Bearer Token + 权限: `resource:delete`
+  operationId: deleteResource
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: 资源ID
+      schema:
+        type: integer
+      example: 1
+  responses:
+    '200':
+      description: 删除成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/SuccessResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

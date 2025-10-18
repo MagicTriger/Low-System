@@ -1,0 +1,79 @@
+get:
+  tags:
+    - 设计器
+  summary: 获取组件库列表
+  description: |
+    获取所有可用的组件库。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回所有已启用的组件库
+    - 包含组件库的基本信息和组件列表
+  operationId: getComponentLibraries
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: enabled
+      in: query
+      required: false
+      description: 是否只返回已启用的组件库
+      schema:
+        type: boolean
+        default: true
+      example: true
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '../../schemas/designer.yaml#/ComponentLibrary'
+          examples:
+            success:
+              summary: 组件库列表
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - id: lib_basic
+                    name: 基础组件库
+                    version: 1.0.0
+                    description: 包含按钮、输入框等基础组件
+                    enabled: true
+                    components:
+                      - type: button
+                        name: 按钮
+                        category: basic
+                        icon: button
+                        description: 可点击的按钮组件
+                      - type: input
+                        name: 输入框
+                        category: form
+                        icon: input
+                        description: 文本输入组件
+                  - id: lib_layout
+                    name: 布局组件库
+                    version: 1.0.0
+                    description: 包含容器、网格等布局组件
+                    enabled: true
+                    components:
+                      - type: container
+                        name: 容器
+                        category: layout
+                        icon: container
+                        description: 通用容器组件
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

@@ -1,0 +1,70 @@
+post:
+  tags:
+    - 菜单管理
+  summary: 创建菜单
+  description: |
+    创建新的菜单项。
+
+    **认证**: 需要Bearer Token + 权限: `menu:create`
+  operationId: createMenu
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../schemas/menu.yaml#/MenuCreateRequest'
+        examples:
+          folder:
+            summary: 创建文件夹
+            value:
+              parentId: null
+              menuCode: system
+              name: 系统管理
+              module: admin
+              nodeType: 1
+              sortOrder: 0
+              icon: setting
+          page:
+            summary: 创建页面
+            value:
+              parentId: 2
+              menuCode: user
+              name: 用户管理
+              module: admin
+              nodeType: 2
+              sortOrder: 0
+              url: /system/user
+              icon: user
+              path: /admin/system/user
+  responses:
+    '200':
+      description: 创建成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '../../schemas/menu.yaml#/MenuTreeNode'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '409':
+      description: 菜单编码已存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

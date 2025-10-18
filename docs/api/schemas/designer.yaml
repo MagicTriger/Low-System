@@ -1,0 +1,96 @@
+# 设计器数据模型
+
+Canvas:
+  type: object
+  properties:
+    resourceId:
+      type: integer
+      description: 资源ID
+      example: 1
+    content:
+      type: object
+      description: 画布内容（组件树）
+      example:
+        root:
+          kind: Container
+          children: []
+    version:
+      type: string
+      description: 版本号
+      example: '1.0.0'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+
+CanvasSaveRequest:
+  type: object
+  required:
+    - resourceId
+    - content
+  properties:
+    resourceId:
+      type: integer
+      description: 资源ID
+    content:
+      type: object
+      description: 画布内容（组件树）
+    version:
+      type: string
+      description: 版本号
+
+Component:
+  type: object
+  properties:
+    kind:
+      type: string
+      description: 组件类型
+      example: Button
+    name:
+      type: string
+      description: 组件名称
+      example: 按钮
+    category:
+      type: string
+      description: 组件分类
+      example: common
+    icon:
+      type: string
+      description: 组件图标
+      example: button
+    config:
+      type: object
+      description: 组件配置
+      properties:
+        props:
+          type: object
+          description: 属性配置
+        events:
+          type: object
+          description: 事件配置
+        styles:
+          type: object
+          description: 样式配置
+
+ComponentRegisterRequest:
+  type: object
+  required:
+    - kind
+    - name
+    - config
+  properties:
+    kind:
+      type: string
+      description: 组件类型
+    name:
+      type: string
+      description: 组件名称
+    category:
+      type: string
+      description: 组件分类
+    icon:
+      type: string
+      description: 组件图标
+    config:
+      type: object
+      description: 组件配置

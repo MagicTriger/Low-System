@@ -1,0 +1,322 @@
+post:
+  tags:
+    - 配置管理
+  summary: 更新单个配置
+  description: |
+    更新指定键的配置值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 自动验证配置值
+    - 支持热更新
+    - 记录变更历史
+    - 触发配置变更事件
+  operationId: updateConfig
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - key
+            - value
+          properties:
+            key:
+              type: string
+              description: 配置键
+              example: app.theme
+            value:
+              description: 配置值
+              example: dark
+            scope:
+              type: string
+              description: 配置作用域
+              enum: [global, user, workspace, session]
+              default: user
+              example: user
+            reason:
+              type: string
+              nullable: true
+              description: 变更原因
+              maxLength: 500
+              example: User preference update
+        examples:
+          updateTheme:
+            summary: 更新主题
+            value:
+              key: app.theme
+              value: dark
+              scope: user
+              reason: User changed theme preference
+          updateDebug:
+            summary: 更新调试模式
+            value:
+              key: system.debug
+              value: true
+              scope: global
+              reason: Enable debug for troubleshooting
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigResponse'
+          examples:
+            success:
+              summary: 更新成功
+              value:
+                success: true
+                code: 200
+                message: 配置更新成功
+                data:
+                  key: app.theme
+                  value: dark
+                  type: string
+                  description: 应用主题设置
+                  category: appearance
+                  scope: user
+                  editable: true
+                  updatedAt: '2024-01-01T12:30:00Z'
+                  updatedBy: admin
+    '400':
+      description: 请求参数错误或验证失败
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+          examples:
+            validationError:
+              summary: 验证失败
+              value:
+                success: false
+                code: 400
+                message: 配置验证失败
+                errors:
+                  - field: value
+                    message: Value must be one of [light, dark, auto]
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '403':
+      description: 配置不可编辑
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 配置不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 配置管理
+  summary: 批量更新配置
+  description: |
+    批量更新多个配置值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持事务性更新（全部成功或全部失败）
+    - 自动验证所有配置值
+    - 支持热更新
+    - 记录变更历史
+  operationId: updateBatchConfigs
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - configs
+          properties:
+            configs:
+              type: object
+              description: 配置键值对
+              additionalProperties: true
+              example:
+                app.theme: dark
+                app.language: en
+                app.fontSize: 16
+            scope:
+              type: string
+              description: 配置作用域
+              enum: [global, user, workspace, session]
+              default: user
+              example: user
+            reason:
+              type: string
+              nullable: true
+              description: 变更原因
+              maxLength: 500
+              example: Batch update user preferences
+            transaction:
+              type: boolean
+              description: 是否使用事务（全部成功或全部失败）
+              default: true
+              example: true
+        examples:
+          batchUpdate:
+            summary: 批量更新
+            value:
+              configs:
+                app.theme: dark
+                app.language: en
+                app.fontSize: 16
+              scope: user
+              reason: User preference update
+              transaction: true
+  responses:
+    '200':
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: integer
+                        description: 更新成功的配置数量
+                        example: 3
+                      failed:
+                        type: integer
+                        description: 更新失败的配置数量
+                        example: 0
+                      errors:
+                        type: array
+                        description: 失败的配置
+                        items:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                              example: app.invalidKey
+                            error:
+                              type: string
+                              example: Configuration not found
+          examples:
+            success:
+              summary: 全部成功
+              value:
+                success: true
+                code: 200
+                message: 批量更新成功
+                data:
+                  updated: 3
+                  failed: 0
+                  errors: []
+            partialSuccess:
+              summary: 部分成功
+              value:
+                success: true
+                code: 200
+                message: 批量更新完成
+                data:
+                  updated: 2
+                  failed: 1
+                  errors:
+                    - key: app.invalidKey
+                      error: Configuration not found
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+delete:
+  tags:
+    - 配置管理
+  summary: 重置配置
+  description: |
+    将配置重置为默认值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 重置为系统默认值
+    - 记录变更历史
+    - 触发配置变更事件
+  operationId: resetConfig
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: key
+      in: query
+      required: true
+      description: 配置键（支持通配符）
+      schema:
+        type: string
+      example: app.*
+    - name: scope
+      in: query
+      required: false
+      description: 配置作用域
+      schema:
+        type: string
+        enum: [global, user, workspace, session]
+        default: user
+      example: user
+  responses:
+    '200':
+      description: 重置成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      resetCount:
+                        type: integer
+                        description: 重置的配置数量
+                        example: 5
+          examples:
+            success:
+              summary: 重置成功
+              value:
+                success: true
+                code: 200
+                message: 配置重置成功
+                data:
+                  resetCount: 5
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 配置不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

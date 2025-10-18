@@ -1,0 +1,277 @@
+get:
+  tags:
+    - 配置管理
+  summary: 获取单个配置
+  description: |
+    获取指定键的配置值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持按作用域获取
+    - 自动合并多个配置源
+    - 按优先级返回最终值
+  operationId: getConfig
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: key
+      in: query
+      required: true
+      description: 配置键
+      schema:
+        type: string
+      example: app.theme
+    - name: scope
+      in: query
+      required: false
+      description: 配置作用域
+      schema:
+        type: string
+        enum: [global, user, workspace, session]
+        default: user
+      example: user
+    - name: includeMetadata
+      in: query
+      required: false
+      description: 是否包含元数据
+      schema:
+        type: boolean
+        default: false
+      example: true
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigResponse'
+          examples:
+            success:
+              summary: 获取成功
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  key: app.theme
+                  value: dark
+                  type: string
+                  description: 应用主题设置
+                  category: appearance
+                  scope: user
+                  editable: true
+                  sensitive: false
+                  defaultValue: light
+                  createdAt: '2024-01-01T12:00:00Z'
+                  updatedAt: '2024-01-01T12:30:00Z'
+                  updatedBy: admin
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 配置不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+post:
+  tags:
+    - 配置管理
+  summary: 批量获取配置
+  description: |
+    批量获取多个配置值。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持通配符匹配
+    - 支持按分类获取
+    - 返回键值对对象
+  operationId: getBatchConfigs
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            keys:
+              type: array
+              description: 配置键列表（支持通配符）
+              items:
+                type: string
+              example: [app.*, system.debug]
+            category:
+              type: string
+              nullable: true
+              description: 按分类获取
+              example: appearance
+            scope:
+              type: string
+              description: 配置作用域
+              enum: [global, user, workspace, session]
+              default: user
+              example: user
+            includeMetadata:
+              type: boolean
+              description: 是否包含元数据
+              default: false
+              example: false
+        examples:
+          wildcardQuery:
+            summary: 通配符查询
+            value:
+              keys: [app.*]
+              scope: user
+              includeMetadata: false
+          categoryQuery:
+            summary: 分类查询
+            value:
+              category: appearance
+              scope: user
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigBatchResponse'
+          examples:
+            success:
+              summary: 批量获取成功
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  app.theme: dark
+                  app.language: en
+                  app.fontSize: 14
+                  app.debug: false
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+
+put:
+  tags:
+    - 配置管理
+  summary: 获取所有配置
+  description: |
+    获取所有配置项。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 支持分页
+    - 支持按分类筛选
+    - 支持按作用域筛选
+  operationId: getAllConfigs
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: page
+      in: query
+      required: false
+      description: 页码
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    - name: pageSize
+      in: query
+      required: false
+      description: 每页数量
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      example: 50
+    - name: category
+      in: query
+      required: false
+      description: 配置分类
+      schema:
+        type: string
+      example: appearance
+    - name: scope
+      in: query
+      required: false
+      description: 配置作用域
+      schema:
+        type: string
+        enum: [global, user, workspace, session]
+      example: user
+    - name: editable
+      in: query
+      required: false
+      description: 是否只返回可编辑的配置
+      schema:
+        type: boolean
+      example: true
+    - name: search
+      in: query
+      required: false
+      description: 搜索关键词（搜索键和描述）
+      schema:
+        type: string
+      example: theme
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/config.yaml#/ConfigListResponse'
+          examples:
+            success:
+              summary: 配置列表
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  - key: app.theme
+                    value: dark
+                    type: string
+                    description: 应用主题设置
+                    category: appearance
+                    scope: user
+                    editable: true
+                  - key: app.language
+                    value: en
+                    type: string
+                    description: 应用语言设置
+                    category: appearance
+                    scope: user
+                    editable: true
+                  - key: app.fontSize
+                    value: 14
+                    type: number
+                    description: 字体大小
+                    category: appearance
+                    scope: user
+                    editable: true
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

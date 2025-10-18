@@ -1,0 +1,69 @@
+# Schema引用汇总
+
+# 通用模型
+SuccessResponse:
+  $ref: '../schemas/common.yaml#/SuccessResponse'
+
+ErrorResponse:
+  $ref: '../schemas/common.yaml#/ErrorResponse'
+
+PaginationResponse:
+  $ref: '../schemas/common.yaml#/PaginationResponse'
+
+# 认证模型
+LoginRequest:
+  $ref: '../schemas/auth.yaml#/LoginRequest'
+
+LoginResponse:
+  $ref: '../schemas/auth.yaml#/LoginResponse'
+
+UserInfo:
+  $ref: '../schemas/auth.yaml#/UserInfo'
+
+PermissionInfo:
+  $ref: '../schemas/auth.yaml#/PermissionInfo'
+
+RefreshTokenRequest:
+  $ref: '../schemas/auth.yaml#/RefreshTokenRequest'
+
+RefreshTokenResponse:
+  $ref: '../schemas/auth.yaml#/RefreshTokenResponse'
+
+# 菜单模型
+MenuTreeNode:
+  $ref: '../schemas/menu.yaml#/MenuTreeNode'
+
+MenuCreateRequest:
+  $ref: '../schemas/menu.yaml#/MenuCreateRequest'
+
+MenuUpdateRequest:
+  $ref: '../schemas/menu.yaml#/MenuUpdateRequest'
+
+MenuMountRequest:
+  $ref: '../schemas/menu.yaml#/MenuMountRequest'
+
+# 资源模型
+Resource:
+  $ref: '../schemas/resource.yaml#/Resource'
+
+ResourceCreateRequest:
+  $ref: '../schemas/resource.yaml#/ResourceCreateRequest'
+
+ResourceUpdateRequest:
+  $ref: '../schemas/resource.yaml#/ResourceUpdateRequest'
+
+ResourceListResponse:
+  $ref: '../schemas/resource.yaml#/ResourceListResponse'
+
+# 设计器模型
+Canvas:
+  $ref: '../schemas/designer.yaml#/Canvas'
+
+CanvasSaveRequest:
+  $ref: '../schemas/designer.yaml#/CanvasSaveRequest'
+
+Component:
+  $ref: '../schemas/designer.yaml#/Component'
+
+ComponentRegisterRequest:
+  $ref: '../schemas/designer.yaml#/ComponentRegisterRequest'

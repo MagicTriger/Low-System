@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>低代码平台 API 文档</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <style>
+      html {
+        box-sizing: border-box;
+        overflow: -moz-scrollbars-vertical;
+        overflow-y: scroll;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      /* 自定义主题颜色 */
+      .swagger-ui .topbar {
+        background-color: #1890ff;
+      }
+
+      .swagger-ui .topbar .download-url-wrapper .download-url-button {
+        background-color: #096dd9;
+        border-color: #096dd9;
+      }
+
+      .swagger-ui .info .title {
+        color: #1890ff;
+      }
+
+      .swagger-ui .btn.authorize {
+        background-color: #52c41a;
+        border-color: #52c41a;
+      }
+
+      .swagger-ui .btn.authorize:hover {
+        background-color: #389e0d;
+        border-color: #389e0d;
+      }
+
+      /* 自定义Logo */
+      .topbar-wrapper img {
+        content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="40" height="40" fill="%231890ff"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="20" font-weight="bold">API</text></svg>');
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+    <script>
+      window.onload = function () {
+        // 配置Swagger UI
+        const ui = SwaggerUIBundle({
+          url: './openapi.yaml',
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: 'StandaloneLayout',
+          // 默认展开级别
+          docExpansion: 'list',
+          // 显示请求持续时间
+          displayRequestDuration: true,
+          // 过滤器
+          filter: true,
+          // 显示扩展
+          showExtensions: true,
+          // 显示通用扩展
+          showCommonExtensions: true,
+          // 默认模型展开深度
+          defaultModelsExpandDepth: 1,
+          // 默认模型渲染
+          defaultModelRendering: 'example',
+          // 语言
+          supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+          // 请求拦截器
+          requestInterceptor: request => {
+            // 可以在这里添加全局请求头
+            console.log('Request:', request)
+            return request
+          },
+          // 响应拦截器
+          responseInterceptor: response => {
+            console.log('Response:', response)
+            return response
+          },
+          // 自定义验证器URL
+          validatorUrl: null,
+          // OAuth配置
+          oauth2RedirectUrl: window.location.origin + '/oauth2-redirect.html',
+          // 持久化授权
+          persistAuthorization: true,
+        })
+
+        window.ui = ui
+      }
+    </script>
+  </body>
+</html>

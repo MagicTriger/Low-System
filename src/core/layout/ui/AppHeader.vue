@@ -47,7 +47,13 @@
         </a-tooltip>
       </template>
       <!-- 用户信息下拉菜单 -->
-      <UserDropdown v-if="userInfo" :user-info="userInfo" :menu-items="userMenuItems" @menu-click="handleUserAction" />
+      <UserDropdown
+        v-if="userInfo"
+        :user-info="userInfo"
+        :menu-items="userMenuItems"
+        @menu-click="handleUserAction"
+        @avatar-updated="handleAvatarUpdated"
+      />
     </div>
   </div>
 </template>
@@ -75,6 +81,7 @@ const emit = defineEmits<{
   'notification-click': []
   'settings-click': []
   'user-action': [action: string]
+  'avatar-updated': [avatarUrl: string]
 }>()
 
 const userMenuItems = computed<UserMenuItem[]>(() => [
@@ -118,6 +125,10 @@ const handleSettingsClick = () => {
 
 const handleUserAction = (action: string) => {
   emit('user-action', action)
+}
+
+const handleAvatarUpdated = (avatarUrl: string) => {
+  emit('avatar-updated', avatarUrl)
 }
 </script>
 

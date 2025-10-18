@@ -48,7 +48,7 @@ export const SYSTEM_CLIENTS: ClientConfig[] = [
     menuCode: 'admin',
     name: '管理端',
     module: 'admin',
-    nodeType: 1,
+    nodeType: 2,
     nodeTypeText: '客户端',
     sortOrder: 2,
     icon: 'desktop',

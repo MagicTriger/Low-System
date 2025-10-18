@@ -1,0 +1,133 @@
+post:
+  tags:
+    - 数据源
+  summary: 测试数据源连接
+  description: |
+    测试数据源连接是否正常。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 可以测试已保存的数据源
+    - 也可以测试新配置（不保存）
+    - 返回连接状态和详细信息
+  operationId: testDataSourceConnection
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            dataSourceId:
+              type: string
+              nullable: true
+              description: 数据源ID（测试已保存的数据源）
+              example: ds_mysql_001
+            type:
+              type: string
+              nullable: true
+              description: 数据源类型（测试新配置）
+              enum: [mysql, postgresql, mongodb, redis, http, graphql, rest]
+              example: mysql
+            config:
+              nullable: true
+              description: 数据源配置（测试新配置）
+              $ref: '../../schemas/datasource.yaml#/DataSourceConfig'
+        examples:
+          testExisting:
+            summary: 测试已保存的数据源
+            value:
+              dataSourceId: ds_mysql_001
+          testNew:
+            summary: 测试新配置
+            value:
+              type: mysql
+              config:
+                host: localhost
+                port: 3306
+                database: user_db
+                username: root
+                password: password123
+  responses:
+    '200':
+      description: 测试完成
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      connected:
+                        type: boolean
+                        description: 是否连接成功
+                        example: true
+                      message:
+                        type: string
+                        description: 测试结果消息
+                        example: 连接成功
+                      responseTime:
+                        type: integer
+                        description: 响应时间（毫秒）
+                        example: 125
+                      serverInfo:
+                        type: object
+                        nullable: true
+                        description: 服务器信息
+                        properties:
+                          version:
+                            type: string
+                            example: 8.0.32
+                          charset:
+                            type: string
+                            example: utf8mb4
+                      error:
+                        type: string
+                        nullable: true
+                        description: 错误信息
+                        example: null
+          examples:
+            success:
+              summary: 连接成功
+              value:
+                success: true
+                code: 200
+                message: 测试完成
+                data:
+                  connected: true
+                  message: 连接成功
+                  responseTime: 125
+                  serverInfo:
+                    version: 8.0.32
+                    charset: utf8mb4
+                  error: null
+            failure:
+              summary: 连接失败
+              value:
+                success: true
+                code: 200
+                message: 测试完成
+                data:
+                  connected: false
+                  message: 连接失败
+                  responseTime: 5000
+                  serverInfo: null
+                  error: 'Connection refused: Unable to connect to host localhost:3306'
+    '400':
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

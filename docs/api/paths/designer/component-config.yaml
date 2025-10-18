@@ -1,0 +1,90 @@
+get:
+  tags:
+    - 设计器
+  summary: 获取组件配置
+  description: |
+    获取指定组件类型的配置信息。
+
+    **认证**: 需要Bearer Token
+
+    **说明**:
+    - 返回组件的默认属性、样式、配置项架构等
+    - 用于属性面板动态渲染
+  operationId: getComponentConfig
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: type
+      in: query
+      required: true
+      description: 组件类型
+      schema:
+        type: string
+        enum: [button, input, text, image, container, grid, flex, form]
+      example: button
+  responses:
+    '200':
+      description: 获取成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../../schemas/common.yaml#/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '../../schemas/designer.yaml#/ComponentDefinition'
+          examples:
+            buttonConfig:
+              summary: 按钮组件配置
+              value:
+                success: true
+                code: 200
+                message: 获取成功
+                data:
+                  type: button
+                  name: 按钮
+                  category: basic
+                  icon: button
+                  description: 可点击的按钮组件
+                  defaultProps:
+                    text: 按钮
+                    type: primary
+                    disabled: false
+                  defaultStyle:
+                    backgroundColor: '#007bff'
+                    color: '#ffffff'
+                    fontSize: 14
+                    borderRadius: 4
+                    padding: 10px 15px
+                  defaultSize:
+                    width: 120
+                    height: 40
+                  configSchema:
+                    type: object
+                    properties:
+                      text:
+                        type: string
+                        title: 按钮文本
+                        default: 按钮
+                      type:
+                        type: string
+                        title: 按钮类型
+                        enum: [primary, secondary, success, danger, warning]
+                        default: primary
+                      disabled:
+                        type: boolean
+                        title: 是否禁用
+                        default: false
+    '401':
+      description: 未授权
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'
+    '404':
+      description: 组件类型不存在
+      content:
+        application/json:
+          schema:
+            $ref: '../../schemas/common.yaml#/ErrorResponse'

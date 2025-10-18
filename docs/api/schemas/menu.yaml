@@ -1,0 +1,374 @@
+# 菜单管理数据模型
+
+MenuTreeNode:
+  type: object
+  properties:
+    id:
+      type: integer
+      description: 菜单ID
+      example: 1
+    parentId:
+      type: integer
+      nullable: true
+      description: 父菜单ID
+      example: null
+    menuCode:
+      type: string
+      description: 菜单编码
+      example: dashboard
+      pattern: '^[a-zA-Z0-9_-]+$'
+    name:
+      type: string
+      description: 菜单名称
+      example: 仪表板
+      minLength: 1
+      maxLength: 50
+    module:
+      type: string
+      description: 所属模块
+      example: admin
+    nodeType:
+      type: integer
+      description: 节点类型
+      enum: [1, 2, 3]
+      example: 2
+      x-enum-descriptions:
+        1: 文件夹
+        2: 页面
+        3: 按钮
+    sortOrder:
+      type: integer
+      description: 排序顺序
+      example: 0
+      default: 0
+    url:
+      type: string
+      description: 页面URL
+      example: /dashboard
+    icon:
+      type: string
+      description: 图标
+      example: dashboard
+    path:
+      type: string
+      description: 路由路径
+      example: /admin/dashboard
+    children:
+      type: array
+      description: 子菜单
+      items:
+        $ref: '#/MenuTreeNode'
+
+MenuCreateRequest:
+  type: object
+  required:
+    - menuCode
+    - name
+    - module
+  properties:
+    parentId:
+      type: integer
+      nullable: true
+      description: 父菜单ID
+    menuCode:
+      type: string
+      description: 菜单编码
+      pattern: '^[a-zA-Z0-9_-]+$'
+    name:
+      type: string
+      description: 菜单名称
+      minLength: 1
+      maxLength: 50
+    module:
+      type: string
+      description: 所属模块
+    nodeType:
+      type: integer
+      description: 节点类型
+      enum: [1, 2, 3]
+      default: 2
+    sortOrder:
+      type: integer
+      description: 排序顺序
+      default: 0
+    url:
+      type: string
+      description: 页面URL
+    icon:
+      type: string
+      description: 图标
+    path:
+      type: string
+      description: 路由路径
+
+MenuUpdateRequest:
+  allOf:
+    - $ref: '#/MenuCreateRequest'
+    - type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: 菜单ID
+
+MenuResource:
+  type: object
+  description: 菜单资源完整信息
+  properties:
+    id:
+      type: integer
+      description: 菜单ID
+      example: 1
+    parentId:
+      type: integer
+      nullable: true
+      description: 父菜单ID
+      example: null
+    menuCode:
+      type: string
+      description: 菜单编码（唯一）
+      example: dashboard
+      pattern: '^[a-zA-Z0-9_-]+$'
+    name:
+      type: string
+      description: 菜单名称
+      example: 仪表板
+      minLength: 1
+      maxLength: 50
+    module:
+      type: string
+      description: 所属模块
+      example: admin
+      enum: [admin, designer, mobile, manager]
+    nodeType:
+      type: integer
+      description: 节点类型
+      enum: [1, 2, 3]
+      example: 2
+      x-enum-descriptions:
+        1: 文件夹
+        2: 页面
+        3: 按钮
+    sortOrder:
+      type: integer
+      description: 排序顺序（数字越小越靠前）
+      example: 0
+      default: 0
+    url:
+      type: string
+      nullable: true
+      description: 页面URL
+      example: /dashboard
+    icon:
+      type: string
+      nullable: true
+      description: 图标名称
+      example: dashboard
+    path:
+      type: string
+      nullable: true
+      description: 完整路由路径
+      example: /admin/dashboard
+    enabled:
+      type: boolean
+      description: 是否启用
+      example: true
+      default: true
+    visible:
+      type: boolean
+      description: 是否可见
+      example: true
+      default: true
+    permission:
+      type: string
+      nullable: true
+      description: 所需权限
+      example: menu:view
+    description:
+      type: string
+      nullable: true
+      description: 菜单描述
+      example: 系统仪表板页面
+      maxLength: 200
+    createdAt:
+      type: string
+      format: date-time
+      description: 创建时间
+      example: '2024-01-01T00:00:00Z'
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新时间
+      example: '2024-01-01T00:00:00Z'
+    createdBy:
+      type: string
+      description: 创建人
+      example: admin
+    updatedBy:
+      type: string
+      description: 更新人
+      example: admin
+
+MenuQueryParams:
+  type: object
+  description: 菜单查询参数
+  properties:
+    module:
+      type: string
+      description: 按模块筛选
+      example: admin
+      enum: [admin, designer, mobile, manager]
+    nodeType:
+      type: integer
+      description: 按节点类型筛选
+      enum: [1, 2, 3]
+      example: 2
+    parentId:
+      type: integer
+      nullable: true
+      description: 按父菜单ID筛选
+      example: 1
+    enabled:
+      type: boolean
+      description: 按启用状态筛选
+      example: true
+    visible:
+      type: boolean
+      description: 按可见状态筛选
+      example: true
+    keyword:
+      type: string
+      description: 关键词搜索（菜单名称或编码）
+      example: 用户
+      maxLength: 50
+
+MenuMountRequest:
+  type: object
+  required:
+    - menuCode
+    - targetModule
+  properties:
+    menuCode:
+      type: string
+      description: 要挂载的菜单编码
+      example: dashboard
+    targetModule:
+      type: string
+      description: 目标模块
+      example: admin
+      enum: [admin, designer, mobile, manager]
+    parentId:
+      type: integer
+      nullable: true
+      description: 挂载到的父菜单ID
+      example: null
+    sortOrder:
+      type: integer
+      description: 挂载后的排序顺序
+      example: 0
+      default: 0
+
+MenuUnmountRequest:
+  type: object
+  required:
+    - menuCode
+    - module
+  properties:
+    menuCode:
+      type: string
+      description: 要取消挂载的菜单编码
+      example: dashboard
+    module:
+      type: string
+      description: 所在模块
+      example: admin
+      enum: [admin, designer, mobile, manager]
+
+MenuMountStatusResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: object
+          properties:
+            menuCode:
+              type: string
+              description: 菜单编码
+              example: dashboard
+            mountedModules:
+              type: array
+              description: 已挂载的模块列表
+              items:
+                type: string
+              example: [admin, designer]
+            mountDetails:
+              type: array
+              description: 挂载详情
+              items:
+                type: object
+                properties:
+                  module:
+                    type: string
+                    description: 模块名称
+                  parentId:
+                    type: integer
+                    nullable: true
+                    description: 父菜单ID
+                  sortOrder:
+                    type: integer
+                    description: 排序顺序
+                  mountedAt:
+                    type: string
+                    format: date-time
+                    description: 挂载时间
+
+MenuSortRequest:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      description: 菜单排序项列表
+      items:
+        type: object
+        required:
+          - id
+          - sortOrder
+        properties:
+          id:
+            type: integer
+            description: 菜单ID
+            example: 1
+          sortOrder:
+            type: integer
+            description: 新的排序顺序
+            example: 0
+      minItems: 1
+      example:
+        - id: 1
+          sortOrder: 0
+        - id: 2
+          sortOrder: 1
+        - id: 3
+          sortOrder: 2
+
+MenuListResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/MenuResource'
+
+MenuDetailResponse:
+  allOf:
+    - $ref: './common.yaml#/SuccessResponse'
+    - type: object
+      properties:
+        data:
+          $ref: '#/MenuResource'
