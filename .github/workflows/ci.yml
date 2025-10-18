@@ -77,7 +77,7 @@ jobs:
 
       - name: 上传 lint 结果
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lint-results
           path: |
@@ -127,7 +127,7 @@ jobs:
 
       - name: 上传测试结果
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-node-${{ matrix.node-version }}
           path: |
@@ -174,7 +174,7 @@ jobs:
       #   continue-on-error: true
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.build-mode }}
           path: dist/
@@ -210,7 +210,7 @@ jobs:
         run: npm ci
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-production
           path: dist/
@@ -228,7 +228,7 @@ jobs:
 
       - name: 上传 E2E 测试结果
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: e2e-results-${{ matrix.browser }}-${{ matrix.device }}
           path: |
@@ -265,7 +265,7 @@ jobs:
         run: npm ci
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-production
           path: dist/
@@ -280,7 +280,7 @@ jobs:
 
       - name: 上传性能报告
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lighthouse-results
           path: .lighthouseci/
@@ -317,7 +317,7 @@ jobs:
 
       - name: 上传安全扫描结果
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-results
           path: npm-audit.json
@@ -342,7 +342,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-production
           path: dist/
@@ -372,7 +372,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-production
           path: dist/
