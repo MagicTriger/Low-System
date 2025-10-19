@@ -28,16 +28,19 @@
             <a-input v-model:value="filterForm.name" placeholder="请输入资源名称" allow-clear @press-enter="handleSearch" />
           </a-form-item>
           <a-form-item label="菜单编码">
-            <a-input v-model:value="filterForm.menuCode" placeholder="请输入菜单编码" allow-clear @press-enter="handleSearch" />
+            <a-input v-model:value="filterForm.code" placeholder="请输入菜单编码" allow-clear @press-enter="handleSearch" />
           </a-form-item>
-          <a-form-item label="业务模块">
-            <a-input v-model:value="filterForm.module" placeholder="请输入业务模块" allow-clear @press-enter="handleSearch" />
+          <a-form-item label="权限路径">
+            <a-input v-model:value="filterForm.path" placeholder="请输入权限路径" allow-clear @press-enter="handleSearch" />
           </a-form-item>
-          <a-form-item label="节点类型">
-            <a-select v-model:value="filterForm.nodeType" placeholder="请选择节点类型" allow-clear style="width: 120px">
-              <a-select-option :value="1">文件夹</a-select-option>
-              <a-select-option :value="2">页面</a-select-option>
-              <a-select-option :value="3">按钮</a-select-option>
+          <a-form-item label="菜单类型">
+            <a-select v-model:value="filterForm.type" placeholder="请选择菜单类型" allow-clear style="width: 150px">
+              <a-select-option value="CLIENT">客户端</a-select-option>
+              <a-select-option value="DIRECTORY">目录</a-select-option>
+              <a-select-option value="MENU">菜单</a-select-option>
+              <a-select-option value="CUSTOM_PAGE">自定义界面</a-select-option>
+              <a-select-option value="MODEL_PAGE">模型页面</a-select-option>
+              <a-select-option value="BUTTON">按钮</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
@@ -60,7 +63,7 @@
       <!-- 卡片视图 -->
       <ResourceCardView
         v-if="viewMode === 'card'"
-        :resources="dataSource"
+        :resources="flatDataSource"
         @edit="handleEdit"
         @delete="handleDelete"
         @designer="handleDesigner"
@@ -81,11 +84,20 @@
         :scroll="{ x: 1200 }"
         :default-expand-all-rows="true"
         :child-children-column-name="'children'"
+        :row-selection="{
+          type: 'radio',
+          selectedRowKeys: selectedRowKeys,
+          onChange: handleSelectionChange,
+          getCheckboxProps: (record: any) => ({
+            disabled: record.type === 'BUTTON',
+          }),
+          checkStrictly: false,
+        }"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'nodeType'">
-            <a-tag :color="getNodeTypeColor(record.nodeType)">
-              {{ getNodeTypeText(record.nodeType) }}
+          <template v-if="column.key === 'type'">
+            <a-tag :color="getMenuTypeColor(record.type)">
+              {{ getMenuTypeText(record.type) }}
             </a-tag>
           </template>
           <template v-else-if="column.key === 'icon'">
@@ -94,16 +106,22 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-tooltip :title="record.mountedToAdmin ? '取消挂载' : '挂载到管理端'">
-                <a-button type="link" size="small" :loading="mountingId === record.id" @click="handleToggleMount(record as MenuTreeNode)">
+              <a-tooltip :title="record.type === 'CLIENT' ? '客户端类型不支持挂载' : record.mountedToAdmin ? '取消挂载' : '挂载到管理端'">
+                <a-button
+                  type="link"
+                  size="small"
+                  :disabled="record.type === 'CLIENT'"
+                  :loading="mountingId === record.id"
+                  @click="handleToggleMount(record as MenuResource)"
+                >
                   <template #icon>
-                    <ApiOutlined v-if="!record.mountedToAdmin" />
-                    <ApiOutlined v-else style="color: #52c41a" />
+                    <ApiOutlined v-if="!record.mountedToAdmin" :style="{ color: record.type === 'CLIENT' ? '#d9d9d9' : undefined }" />
+                    <ApiOutlined v-else :style="{ color: record.type === 'CLIENT' ? '#d9d9d9' : '#52c41a' }" />
                   </template>
                 </a-button>
               </a-tooltip>
               <a-tooltip title="进入设计器">
-                <a-button type="link" size="small" @click="handleDesigner(record as MenuResource)">
+                <a-button type="link" size="small" @click="handleDesigner(record as MenuResource)" :disabled="record.type === 'CLIENT'">
                   <template #icon>
                     <DesktopOutlined />
                   </template>
@@ -157,7 +175,6 @@ import { useModule } from '@/core/state/helpers'
 import { useLogger } from '@/core/services/helpers'
 import { notificationService } from '@/core/notification'
 import type { MenuResource, MenuTreeNode } from '@/core/api/menu'
-import { getDefaultClients } from '@/config/clients'
 import ResourceForm from '../components/ResourceForm.vue'
 import ResourceCardView from '../components/ResourceCardView.vue'
 import { getIconLibraryManager } from '@/core/renderer/icons/IconLibraryManager'
@@ -175,13 +192,32 @@ const loading = ref(false)
 const searching = ref(false)
 const deletingId = ref<number | null>(null)
 const mountingId = ref<number | null>(null)
-const dataSource = ref<MenuTreeNode[]>([])
+const dataSource = ref<(MenuResource | MenuTreeNode)[]>([])
 const viewMode = ref<'card' | 'table'>('card')
+const selectedRowKeys = ref<number[]>([]) // 选中的行
+const selectedParentNode = ref<MenuResource | MenuTreeNode | null>(null) // 选中的父节点
 const filterForm = reactive({
   name: '',
-  menuCode: '',
-  module: '',
-  nodeType: undefined as number | undefined,
+  code: '',
+  path: '',
+  type: undefined as string | undefined,
+})
+
+// 为卡片视图提供扁平化的数据
+const flatDataSource = computed(() => {
+  // 递归扁平化树形结构
+  const flatten = (nodes: (MenuResource | MenuTreeNode)[]): MenuResource[] => {
+    const result: MenuResource[] = []
+    for (const node of nodes) {
+      const { children, ...resource } = node as MenuTreeNode
+      result.push(resource as MenuResource)
+      if (children && children.length > 0) {
+        result.push(...flatten(children))
+      }
+    }
+    return result
+  }
+  return flatten(dataSource.value)
 })
 
 // 视图切换选项
@@ -198,9 +234,6 @@ const viewOptions = [
   },
 ]
 
-// 从配置文件获取默认客户端数据
-const defaultClients = getDefaultClients()
-
 const pagination = reactive({
   current: 1,
   pageSize: 10,
@@ -213,34 +246,40 @@ const pagination = reactive({
 // 表格列定义
 const columns = [
   {
-    title: 'ID',
-    dataIndex: 'id',
-    key: 'id',
-    width: 80,
-  },
-  {
     title: '资源名称',
     dataIndex: 'name',
     key: 'name',
-    width: 150,
+    width: 100,
+  },
+  {
+    title: 'ID',
+    dataIndex: 'id',
+    key: 'id',
+    width: 180,
   },
   {
     title: '菜单编码',
-    dataIndex: 'menuCode',
-    key: 'menuCode',
+    dataIndex: 'code',
+    key: 'code',
     width: 150,
   },
   {
-    title: '业务模块',
-    dataIndex: 'module',
-    key: 'module',
+    title: '菜单类型',
+    dataIndex: 'type',
+    key: 'type',
     width: 120,
   },
   {
-    title: '节点类型',
-    dataIndex: 'nodeType',
-    key: 'nodeType',
-    width: 100,
+    title: 'URL',
+    dataIndex: 'url',
+    key: 'url',
+    width: 150,
+  },
+  {
+    title: '权限路径',
+    dataIndex: 'path',
+    key: 'path',
+    width: 120,
   },
   {
     title: '排序',
@@ -255,15 +294,9 @@ const columns = [
     width: 80,
   },
   {
-    title: '路径',
-    dataIndex: 'path',
-    key: 'path',
-    width: 150,
-  },
-  {
     title: '创建时间',
-    dataIndex: 'createdAt',
-    key: 'createdAt',
+    dataIndex: 'createTime',
+    key: 'createTime',
     width: 180,
   },
   {
@@ -284,35 +317,15 @@ const fetchData = async () => {
       size: pagination.pageSize,
     })
 
-    // 合并默认客户端数据和API返回的数据
-    const apiResources = resourceModule.state.resources
-
-    // 将API返回的资源按parentId分组
-    const resourcesByParent = new Map<number, MenuResource[]>()
-    apiResources.forEach((resource: MenuResource) => {
-      const parentId = resource.parentId || 0
-      if (!resourcesByParent.has(parentId)) {
-        resourcesByParent.set(parentId, [])
-      }
-      resourcesByParent.get(parentId)!.push(resource)
-    })
-
-    // 为默认客户端添加子资源
-    const clientsWithChildren = defaultClients.map(client => ({
-      ...client,
-      children: resourcesByParent.get(client.id) || [],
-    }))
-
-    dataSource.value = clientsWithChildren
+    // 直接使用后端返回的数据，不再合并内置客户端
+    dataSource.value = resourceModule.state.resources
     pagination.total = resourceModule.state.pagination.total
 
-    dataSource.value = clientsWithChildren
-    logger.info('资源数据加载成功', { count: clientsWithChildren.length })
+    logger.info('资源数据加载成功', { count: dataSource.value.length })
   } catch (error: any) {
     notify.error('加载数据失败', error.message || '请检查网络连接后重试')
     logger.error('加载资源数据失败', error, { filterForm })
-    // 即使API失败，也显示默认客户端
-    dataSource.value = defaultClients.map(client => ({ ...client, children: [] }))
+    dataSource.value = []
   } finally {
     loading.value = false
   }
@@ -331,9 +344,9 @@ const handleSearch = async () => {
 
 const handleReset = () => {
   filterForm.name = ''
-  filterForm.menuCode = ''
-  filterForm.module = ''
-  filterForm.nodeType = undefined
+  filterForm.code = ''
+  filterForm.path = ''
+  filterForm.type = undefined
   pagination.current = 1
   fetchData()
   notify.info('已重置搜索条件')
@@ -346,6 +359,17 @@ const handleRefresh = () => {
 // 表单相关
 const formVisible = ref(false)
 const editData = ref<MenuResource | null>(null)
+
+// 处理表格行选择变化
+const handleSelectionChange = (selectedKeys: number[], selectedRows: any[]) => {
+  selectedRowKeys.value = selectedKeys
+  selectedParentNode.value = selectedRows[0] || null
+
+  if (selectedParentNode.value) {
+    console.log('📌 [ResourceManagement] 选中父节点:', selectedParentNode.value)
+    notify.info('已选择父节点', `父节点: ${selectedParentNode.value.name}`)
+  }
+}
 
 const handleCreate = () => {
   editData.value = null
@@ -389,25 +413,43 @@ const handleEdit = (record: any) => {
   formVisible.value = true
 }
 
-const handleToggleMount = async (record: MenuTreeNode) => {
-  const action = record.mountedToAdmin ? '取消挂载' : '挂载'
-  logger.debug(`准备${action}资源`, { menuCode: record.menuCode, resourceName: record.name })
+const handleToggleMount = async (record: MenuTreeNode | MenuResource) => {
+  // 确保record有mountedToAdmin属性，如果没有则默认为false
+  const currentMountStatus = record.mountedToAdmin ?? false
+  const action = currentMountStatus ? '取消挂载' : '挂载'
+  const newMountStatus = !currentMountStatus
+
+  logger.debug(`准备${action}资源`, { menuId: record.id, resourceName: record.name, currentMountStatus })
 
   mountingId.value = record.id
   try {
-    if (record.mountedToAdmin) {
-      await resourceModule.dispatch('unmountMenuFromAdmin', record.menuCode)
-      logger.info('取消挂载成功', { menuCode: record.menuCode, resourceName: record.name })
-      notify.success('取消挂载成功', `资源"${record.name}"已从管理端移除`)
-    } else {
-      await resourceModule.dispatch('mountMenuToAdmin', record.menuCode)
-      logger.info('挂载成功', { menuCode: record.menuCode, resourceName: record.name })
-      notify.success('挂载成功', `资源"${record.name}"已挂载到管理端`)
-    }
-    // 刷新数据
-    fetchData()
+    // 使用updateResource接口，发送完整的菜单对象
+    await resourceModule.dispatch('updateResource', {
+      id: record.id,
+      code: record.code,
+      name: record.name,
+      type: record.type,
+      url: record.url,
+      path: record.path,
+      icon: record.icon,
+      sortOrder: record.sortOrder,
+      parentId: record.parentId,
+      modelId: record.modelId,
+      modelActionId: record.modelActionId,
+      mountedToAdmin: newMountStatus,
+      remark: record.remark,
+    })
+
+    logger.info(`${action}成功`, { menuId: record.id, resourceName: record.name, newMountStatus })
+    notify.success(`${action}成功`, newMountStatus ? `资源"${record.name}"已挂载到管理端` : `资源"${record.name}"已从管理端移除`)
+
+    // 立即更新本地数据，提供即时反馈
+    record.mountedToAdmin = newMountStatus
+
+    // 刷新数据以确保与后端同步
+    await fetchData()
   } catch (error: any) {
-    logger.error(`${action}失败`, error, { menuCode: record.menuCode })
+    logger.error(`${action}失败`, error, { menuId: record.id })
     notify.error(`${action}失败`, error.message || '请重试')
   } finally {
     mountingId.value = null
@@ -464,22 +506,28 @@ const handleFormSuccess = () => {
   fetchData()
 }
 
-const getNodeTypeText = (nodeType: number) => {
-  const map: Record<number, string> = {
-    1: '文件夹',
-    2: '页面',
-    3: '按钮',
+const getMenuTypeText = (type: string) => {
+  const map: Record<string, string> = {
+    CLIENT: '客户端',
+    DIRECTORY: '目录',
+    MENU: '菜单',
+    CUSTOM_PAGE: '自定义界面',
+    MODEL_PAGE: '模型页面',
+    BUTTON: '按钮',
   }
-  return map[nodeType] || '未知'
+  return map[type] || type
 }
 
-const getNodeTypeColor = (nodeType: number) => {
-  const map: Record<number, string> = {
-    1: 'blue',
-    2: 'green',
-    3: 'orange',
+const getMenuTypeColor = (type: string) => {
+  const map: Record<string, string> = {
+    CLIENT: 'purple',
+    DIRECTORY: 'blue',
+    MENU: 'green',
+    CUSTOM_PAGE: 'cyan',
+    MODEL_PAGE: 'geekblue',
+    BUTTON: 'orange',
   }
-  return map[nodeType] || 'default'
+  return map[type] || 'default'
 }
 
 const getIconComponent = (iconName?: string) => {

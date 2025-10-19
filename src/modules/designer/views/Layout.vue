@@ -14,11 +14,16 @@
         <!-- 用户头像区域 -->
         <div class="user-avatar-section" :class="{ collapsed }">
           <a-avatar :size="collapsed ? 40 : 64" :style="{ backgroundColor: '#f6bb42' }">
-            {{ userInitial }}
+            <template v-if="userInfo?.avatar">
+              <img :src="userInfo.avatar" alt="用户头像" />
+            </template>
+            <template v-else>
+              {{ userInitial }}
+            </template>
           </a-avatar>
           <div v-if="!collapsed" class="user-info">
-            <div class="user-name">{{ username }}</div>
-            <div class="user-role">设计师</div>
+            <div class="user-name">{{ userInfo?.name || '用户' }}</div>
+            <div class="user-role">{{ userInfo?.role || '设计师' }}</div>
           </div>
         </div>
 
@@ -52,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { FolderOutlined } from '@ant-design/icons-vue'
@@ -90,22 +95,83 @@ const userInitial = computed(() => {
 })
 
 // 用户信息对象 - 传递给BaseLayout
-const userInfo = computed(() => {
+// 使用ref来存储用户信息，确保响应式更新
+const userInfo = ref({
+  name: '用户',
+  avatar: undefined as string | undefined,
+  role: '设计师',
+})
+
+// 加载用户信息的函数
+const loadUserInfo = () => {
   const stateManager = getStateManager()
   if (stateManager) {
     const authState = stateManager.getState('auth')
     if (authState?.userInfo) {
-      return {
-        name: authState.userInfo.displayName || authState.userInfo.username || username.value,
+      // 从permissionInfo获取角色名称
+      const permissionInfo = authState.permissionInfo
+      const roleNames = permissionInfo?.roleNames || []
+      const roleName = roleNames.length > 0 ? roleNames.join(', ') : '设计师'
+
+      userInfo.value = {
+        name: authState.userInfo.displayName || authState.userInfo.username || '用户',
         avatar: authState.userInfo.avatar,
-        role: '设计师',
+        role: roleName,
+      }
+
+      console.log('🔍 [Designer Layout] 用户信息已加载:', userInfo.value)
+    } else {
+      console.warn('⚠️ [Designer Layout] 未找到用户信息，使用默认值')
+      // 如果没有 userInfo，尝试从 localStorage 获取
+      const userInfoStr = localStorage.getItem('userInfo')
+      if (userInfoStr && userInfoStr !== 'undefined') {
+        try {
+          const storedUserInfo = JSON.parse(userInfoStr)
+          const permissionInfoStr = localStorage.getItem('permissionInfo')
+          let roleName = '设计师'
+
+          if (permissionInfoStr && permissionInfoStr !== 'undefined') {
+            try {
+              const permissionInfo = JSON.parse(permissionInfoStr)
+              const roleNames = permissionInfo?.roleNames || []
+              roleName = roleNames.length > 0 ? roleNames.join(', ') : '设计师'
+            } catch (e) {
+              console.warn('⚠️ [Designer Layout] permissionInfo 解析失败')
+            }
+          }
+
+          userInfo.value = {
+            name: storedUserInfo.displayName || storedUserInfo.username || '用户',
+            avatar: storedUserInfo.avatar,
+            role: roleName,
+          }
+          console.log('🔍 [Designer Layout] 从 localStorage 加载用户信息:', userInfo.value)
+        } catch (error) {
+          console.error('❌ [Designer Layout] 解析 localStorage 用户信息失败:', error)
+        }
       }
     }
   }
-  return {
-    name: username.value,
-    avatar: undefined,
-    role: '设计师',
+}
+
+// 在组件挂载时加载用户信息
+onMounted(() => {
+  loadUserInfo()
+
+  // 监听 auth state 变化，当 userInfo 更新时重新加载
+  const stateManager = getStateManager()
+  if (stateManager) {
+    // 使用定时器定期检查 auth state 是否更新（简单的响应式方案）
+    const checkInterval = setInterval(() => {
+      const authState = stateManager.getState('auth')
+      if (authState?.userInfo && !userInfo.value.name) {
+        loadUserInfo()
+        clearInterval(checkInterval)
+      }
+    }, 100)
+
+    // 5秒后停止检查
+    setTimeout(() => clearInterval(checkInterval), 5000)
   }
 })
 

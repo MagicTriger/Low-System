@@ -1493,6 +1493,7 @@ onMounted(async () => {
   // 设置持久化服务的资源 URL
   if (resourceUrl) {
     persistenceService.setResourceUrl(resourceUrl)
+    designName.value = resourceUrl
   }
 
   // 检查是否是编辑模式
@@ -1520,18 +1521,18 @@ onMounted(async () => {
     initializeView()
   }
 
-  // 启动自动保存（会使用设置的资源 URL）
-  persistenceService.startAutoSave(() => {
-    if (currentView.value) {
-      persistenceService.saveToLocal({
-        view: currentView.value,
-        dataSources: designerState.dataSources.value,
-        dataFlows: designerState.dataFlows.value,
-        dataActions: designerState.dataActions.value,
-      })
-      console.log(`🔄 [Auto-save] Design auto-saved for resource: ${resourceUrl}`)
-    }
-  })
+  // 自动保存已禁用，只支持手动保存
+  // persistenceService.startAutoSave(() => {
+  //   if (currentView.value) {
+  //     persistenceService.saveToLocal({
+  //       view: currentView.value,
+  //       dataSources: designerState.dataSources.value,
+  //       dataFlows: designerState.dataFlows.value,
+  //       dataActions: designerState.dataActions.value,
+  //     })
+  //     console.log(`🔄 [Auto-save] Design auto-saved for resource: ${resourceUrl}`)
+  //   }
+  // })
 
   // 绑定键盘事件
   window.addEventListener('keydown', handleKeyDown)

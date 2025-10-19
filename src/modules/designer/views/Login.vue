@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import LoginPage from '@/core/auth/LoginPage.vue'
+import LoginPage from '@/modules/login/LoginPage.vue'
 </script>
 
 <style scoped>

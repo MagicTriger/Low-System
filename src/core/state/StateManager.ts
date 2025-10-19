@@ -322,6 +322,26 @@ export class StateManager implements IStateSubscription {
     })
   }
 
+  /**
+   * 获取模块（用于拦截器等场景）
+   */
+  getModule(name: string): any {
+    const pathKey = name
+    const descriptor = this.modules.get(pathKey)
+
+    if (!descriptor) {
+      console.warn(`Module "${name}" not found`)
+      return null
+    }
+
+    return {
+      state: descriptor.runtime.state,
+      getters: descriptor.runtime.getters,
+      commit: this.commit.bind(this),
+      dispatch: this.dispatch.bind(this),
+    }
+  }
+
   // ========== 私有方法 ==========
 
   /**

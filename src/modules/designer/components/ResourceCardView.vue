@@ -53,10 +53,10 @@
                 <component :is="getIconComponent(resource.icon)" class="card-icon" />
               </div>
               <h3 class="card-title">{{ resource.name }}</h3>
-              <p class="card-subtitle">{{ resource.menuCode }}</p>
+              <p class="card-subtitle">{{ resource.code }}</p>
               <div class="card-meta">
-                <a-tag :color="getNodeTypeColor(resource.nodeType)" size="small">
-                  {{ getNodeTypeText(resource.nodeType) }}
+                <a-tag :color="getMenuTypeColor(resource.type)" size="small">
+                  {{ getMenuTypeText(resource.type) }}
                 </a-tag>
                 <span v-if="hasChildren(resource)" class="card-count"> {{ resource.children?.length || 0 }} 个子菜单 </span>
               </div>
@@ -103,15 +103,11 @@
                     </div>
                     <div class="info-item">
                       <span class="info-label">编码</span>
-                      <span class="info-value">{{ resource.menuCode }}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-label">模块</span>
-                      <span class="info-value">{{ resource.module }}</span>
+                      <span class="info-value">{{ resource.code }}</span>
                     </div>
                     <div class="info-item">
                       <span class="info-label">类型</span>
-                      <span class="info-value">{{ resource.nodeTypeText }}</span>
+                      <span class="info-value">{{ getMenuTypeText(resource.type) }}</span>
                     </div>
                     <div class="info-item">
                       <span class="info-label">排序</span>
@@ -121,9 +117,13 @@
                       <span class="info-label">路径</span>
                       <span class="info-value">{{ resource.url }}</span>
                     </div>
+                    <div v-if="resource.path" class="info-item">
+                      <span class="info-label">权限路径</span>
+                      <span class="info-value">{{ resource.path }}</span>
+                    </div>
                     <div class="info-item info-item-full">
                       <span class="info-label">创建时间</span>
-                      <span class="info-value">{{ formatDate(resource.createdAt) }}</span>
+                      <span class="info-value">{{ formatDate(resource.createTime) }}</span>
                     </div>
                   </div>
                 </div>
@@ -152,10 +152,10 @@
               <component :is="getIconComponent(resource.icon)" class="card-icon" />
             </div>
             <h3 class="card-title">{{ resource.name }}</h3>
-            <p class="card-subtitle">{{ resource.menuCode }}</p>
+            <p class="card-subtitle">{{ resource.code }}</p>
             <div class="card-meta">
-              <a-tag :color="getNodeTypeColor(resource.nodeType)" size="small">
-                {{ getNodeTypeText(resource.nodeType) }}
+              <a-tag :color="getMenuTypeColor(resource.type)" size="small">
+                {{ getMenuTypeText(resource.type) }}
               </a-tag>
               <span v-if="hasChildren(resource)" class="card-count"> {{ resource.children?.length || 0 }} 个子菜单 </span>
             </div>
@@ -202,15 +202,11 @@
                   </div>
                   <div class="info-item">
                     <span class="info-label">编码</span>
-                    <span class="info-value">{{ resource.menuCode }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">模块</span>
-                    <span class="info-value">{{ resource.module }}</span>
+                    <span class="info-value">{{ resource.code }}</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">类型</span>
-                    <span class="info-value">{{ resource.nodeTypeText }}</span>
+                    <span class="info-value">{{ getMenuTypeText(resource.type) }}</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">排序</span>
@@ -220,9 +216,13 @@
                     <span class="info-label">路径</span>
                     <span class="info-value">{{ resource.url }}</span>
                   </div>
+                  <div v-if="resource.path" class="info-item">
+                    <span class="info-label">权限路径</span>
+                    <span class="info-value">{{ resource.path }}</span>
+                  </div>
                   <div class="info-item info-item-full">
                     <span class="info-label">创建时间</span>
-                    <span class="info-value">{{ formatDate(resource.createdAt) }}</span>
+                    <span class="info-value">{{ formatDate(resource.createTime) }}</span>
                   </div>
                 </div>
               </div>
@@ -286,12 +286,19 @@ const gridColumns = ref(4)
 
 // 当前显示的资源
 const displayResources = computed(() => {
+  console.log('📊 [ResourceCardView] props.resources:', props.resources)
+  console.log('📊 [ResourceCardView] navigationStack:', navigationStack.value)
+
   if (navigationStack.value.length === 0) {
-    // 根目录：只显示顶级文件夹（父卡片）
-    return props.resources.filter(r => r.nodeType === 1 && (!r.parentId || r.parentId === 0))
+    // 根目录：显示所有顶级资源（parentId 为 null 或 0）
+    const topLevel = props.resources.filter(r => !r.parentId || r.parentId === 0 || r.parentId === null)
+    console.log('📊 [ResourceCardView] 顶级资源:', topLevel)
+    return topLevel
   } else {
     // 子目录：显示当前节点的子节点
     const current = navigationStack.value[navigationStack.value.length - 1]
+    console.log('📊 [ResourceCardView] 当前节点:', current)
+    console.log('📊 [ResourceCardView] 子节点:', current.children)
     return current.children || []
   }
 })
@@ -346,7 +353,7 @@ const getCardClass = (resource: MenuTreeNode) => {
     'card-level-0': level === 0, // 父卡片
     'card-level-1': level === 1, // 一级子卡片
     'card-level-2': level >= 2, // 二级及以上子卡片
-    [`card-type-${resource.nodeType}`]: true,
+    [`card-type-${resource.type}`]: true,
   }
 }
 
@@ -357,8 +364,9 @@ const hasChildren = (resource: MenuTreeNode) => {
 
 // 处理卡片点击
 const handleCardClick = (resource: MenuTreeNode) => {
-  // 如果是文件夹且有子节点，进入下一层
-  if (resource.nodeType === 1 && hasChildren(resource)) {
+  // 如果是目录类型（DIRECTORY 或 CLIENT）且有子节点，进入下一层
+  const isDirectory = resource.type === 'DIRECTORY' || resource.type === 'CLIENT'
+  if (isDirectory && hasChildren(resource)) {
     navigationStack.value.push(resource)
     // 清除所有翻转状态
     flippedCards.value.clear()
@@ -410,30 +418,42 @@ const getIconComponent = (iconName?: string) => {
   return iconMap[iconName] || AppstoreOutlined
 }
 
-// 获取节点类型文本
-const getNodeTypeText = (nodeType: number) => {
-  const map: Record<number, string> = {
-    1: '文件夹',
-    2: '页面',
-    3: '按钮',
+// 获取菜单类型文本
+const getMenuTypeText = (type: string) => {
+  const map: Record<string, string> = {
+    CLIENT: '客户端',
+    DIRECTORY: '目录',
+    MENU: '菜单',
+    CUSTOM_PAGE: '自定义界面',
+    MODEL_PAGE: '模型页面',
+    BUTTON: '按钮',
   }
-  return map[nodeType] || '未知'
+  return map[type] || type
 }
 
-// 获取节点类型颜色
-const getNodeTypeColor = (nodeType: number) => {
-  const map: Record<number, string> = {
-    1: 'blue',
-    2: 'green',
-    3: 'orange',
+// 获取菜单类型颜色
+const getMenuTypeColor = (type: string) => {
+  const map: Record<string, string> = {
+    CLIENT: 'purple',
+    DIRECTORY: 'blue',
+    MENU: 'green',
+    CUSTOM_PAGE: 'cyan',
+    MODEL_PAGE: 'geekblue',
+    BUTTON: 'orange',
   }
-  return map[nodeType] || 'default'
+  return map[type] || 'default'
 }
 
-// 格式化日期
+// 格式化日期 - 格式: YYYY-MM-DD HH:mm
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleString('zh-CN')
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
 // 处理编辑
@@ -458,8 +478,8 @@ const handleDesigner = (resource: MenuTreeNode) => {
 
 // 判断是否为客户端类型（设计端和管理端）
 const isClientType = (resource: MenuTreeNode) => {
-  // 客户端类型的特征：id为1或2，且menuCode为designer或admin
-  return (resource.id === 1 || resource.id === 2) && (resource.menuCode === 'designer' || resource.menuCode === 'admin')
+  // 客户端类型的特征：type 为 CLIENT
+  return resource.type === 'CLIENT'
 }
 </script>
 

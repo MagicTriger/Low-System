@@ -142,14 +142,6 @@ export default defineConfig(({ mode }) => {
         '@validation': fileURLToPath(new URL('./src/core/validation', import.meta.url)),
       },
     },
-    // 屏蔽控制台warning警告
-    // css: {
-    //   preprocessorOptions: {
-    //     scss: {
-    //       api: "modern-compiler" // or 'modern'
-    //     }
-    //   }
-    // },
     optimizeDeps: {
       include:
         env.VITE_APP_MODEL == 'designer'
@@ -173,7 +165,7 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_SERVICE_URL,
           changeOrigin: true,
           ws: true,
-          secure: true,
+          secure: false,
         },
       },
     },

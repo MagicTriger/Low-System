@@ -10,6 +10,31 @@ export interface AuthState {
   loginStatusInfo: LoginStatusInfo | null
 }
 
+// 初始化时从 localStorage 恢复数据的辅助函数
+function getInitialUserInfo(): UserInfo | null {
+  try {
+    const userInfoStr = localStorage.getItem('userInfo')
+    if (userInfoStr && userInfoStr !== 'undefined') {
+      return JSON.parse(userInfoStr)
+    }
+  } catch (error) {
+    console.warn('初始化时解析 userInfo 失败:', error)
+  }
+  return null
+}
+
+function getInitialPermissionInfo(): PermissionInfo | null {
+  try {
+    const permissionInfoStr = localStorage.getItem('permissionInfo')
+    if (permissionInfoStr && permissionInfoStr !== 'undefined') {
+      return JSON.parse(permissionInfoStr)
+    }
+  } catch (error) {
+    console.warn('初始化时解析 permissionInfo 失败:', error)
+  }
+  return null
+}
+
 export const authModule: IStateModule<AuthState> = {
   name: 'auth',
 
@@ -17,8 +42,8 @@ export const authModule: IStateModule<AuthState> = {
     accessToken: localStorage.getItem('accessToken'),
     tokenType: localStorage.getItem('tokenType') || 'Bearer',
     isAuthenticated: !!localStorage.getItem('accessToken'),
-    userInfo: null,
-    permissionInfo: null,
+    userInfo: getInitialUserInfo(),
+    permissionInfo: getInitialPermissionInfo(),
     loginStatusInfo: null,
   },
 
@@ -68,12 +93,57 @@ export const authModule: IStateModule<AuthState> = {
       const userInfoStr = localStorage.getItem('userInfo')
       const permissionInfoStr = localStorage.getItem('permissionInfo')
 
-      if (accessToken && userInfoStr && permissionInfoStr) {
-        state.accessToken = accessToken
-        state.tokenType = tokenType || 'Bearer'
-        state.userInfo = JSON.parse(userInfoStr)
-        state.permissionInfo = JSON.parse(permissionInfoStr)
-        state.isAuthenticated = true
+      // 如果有 accessToken，至少恢复基本认证状态
+      if (accessToken) {
+        try {
+          state.accessToken = accessToken
+          state.tokenType = tokenType || 'Bearer'
+          state.isAuthenticated = true
+
+          // 尝试恢复 userInfo
+          if (userInfoStr && userInfoStr !== 'undefined') {
+            try {
+              state.userInfo = JSON.parse(userInfoStr)
+              console.log('✅ [Auth] userInfo 已恢复:', state.userInfo)
+            } catch (error) {
+              console.warn('⚠️ [Auth] userInfo 解析失败，将保持为 null:', error)
+              state.userInfo = null
+            }
+          } else {
+            console.warn('⚠️ [Auth] localStorage 中没有 userInfo')
+            state.userInfo = null
+          }
+
+          // 尝试恢复 permissionInfo
+          if (permissionInfoStr && permissionInfoStr !== 'undefined') {
+            try {
+              state.permissionInfo = JSON.parse(permissionInfoStr)
+              console.log('✅ [Auth] permissionInfo 已恢复:', state.permissionInfo)
+            } catch (error) {
+              console.warn('⚠️ [Auth] permissionInfo 解析失败，将保持为 null:', error)
+              state.permissionInfo = null
+            }
+          } else {
+            console.warn('⚠️ [Auth] localStorage 中没有 permissionInfo')
+            state.permissionInfo = null
+          }
+
+          console.log('✅ [Auth] 认证状态已恢复 - isAuthenticated:', state.isAuthenticated)
+        } catch (error) {
+          // 恢复失败，清除所有数据
+          console.error('❌ [Auth] 恢复认证数据失败，清除无效数据:', error)
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('tokenType')
+          localStorage.removeItem('userInfo')
+          localStorage.removeItem('permissionInfo')
+          state.accessToken = null
+          state.tokenType = 'Bearer'
+          state.userInfo = null
+          state.permissionInfo = null
+          state.isAuthenticated = false
+        }
+      } else {
+        console.log('ℹ️ [Auth] localStorage 中没有 accessToken，跳过认证恢复')
       }
     },
 

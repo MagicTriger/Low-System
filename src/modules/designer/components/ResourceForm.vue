@@ -22,28 +22,31 @@
         <a-input v-model:value="formData.name" placeholder="请输入资源名称" />
       </a-form-item>
 
-      <a-form-item label="菜单编码" name="menuCode">
-        <a-input v-model:value="formData.menuCode" placeholder="请输入菜单编码（唯一）" />
+      <a-form-item label="菜单编码" name="code">
+        <a-input v-model:value="formData.code" placeholder="请输入菜单编码（唯一）" />
       </a-form-item>
 
-      <a-form-item label="业务模块" name="module">
-        <a-input v-model:value="formData.module" placeholder="请输入业务模块" />
-      </a-form-item>
-
-      <a-form-item label="节点类型" name="nodeType">
-        <a-select v-model:value="formData.nodeType" placeholder="请选择节点类型">
-          <a-select-option :value="1">文件夹</a-select-option>
-          <a-select-option :value="2">页面</a-select-option>
-          <a-select-option :value="3">按钮</a-select-option>
+      <a-form-item label="菜单类型" name="type">
+        <a-select v-model:value="formData.type" placeholder="请选择菜单类型">
+          <a-select-option value="CLIENT">客户端</a-select-option>
+          <a-select-option value="DIRECTORY">目录</a-select-option>
+          <a-select-option value="MENU">菜单</a-select-option>
+          <a-select-option value="CUSTOM_PAGE">自定义界面</a-select-option>
+          <a-select-option value="MODEL_PAGE">模型页面</a-select-option>
+          <a-select-option value="BUTTON">按钮</a-select-option>
         </a-select>
+      </a-form-item>
+
+      <a-form-item label="URL地址" name="url">
+        <a-input v-model:value="formData.url" placeholder="请输入URL地址（用于页面跳转）" />
+      </a-form-item>
+
+      <a-form-item label="权限路径" name="path">
+        <a-input v-model:value="formData.path" placeholder="请输入权限路径（用于权限拦截，如：user-add）" />
       </a-form-item>
 
       <a-form-item label="排序序号" name="sortOrder">
         <a-input-number v-model:value="formData.sortOrder" :min="0" placeholder="请输入排序序号" style="width: 100%" />
-      </a-form-item>
-
-      <a-form-item label="路由路径" name="path">
-        <a-input v-model:value="formData.path" placeholder="请输入路由路径（如：/system/user）" />
       </a-form-item>
 
       <a-form-item label="图标" name="icon">
@@ -111,12 +114,21 @@
         </a-space>
       </a-form-item>
 
-      <a-form-item label="URL地址" name="url">
-        <a-input v-model:value="formData.url" placeholder="请输入URL地址" />
+      <a-form-item label="关联模型ID" name="modelId">
+        <a-input-number v-model:value="formData.modelId" :min="0" placeholder="请输入关联模型ID（可选）" style="width: 100%" />
       </a-form-item>
 
-      <a-form-item label="元数据" name="meta">
-        <a-textarea v-model:value="formData.meta" placeholder="请输入元数据（JSON格式）" :rows="3" />
+      <a-form-item label="模型操作ID" name="modelActionId">
+        <a-input-number v-model:value="formData.modelActionId" :min="0" placeholder="请输入模型操作ID（可选）" style="width: 100%" />
+      </a-form-item>
+
+      <a-form-item label="挂载到管理端" name="mountedToAdmin">
+        <a-switch v-model:checked="formData.mountedToAdmin" :disabled="formData.type === 'CLIENT'" />
+        <div v-if="formData.type === 'CLIENT'" style="color: #999; font-size: 12px; margin-top: 4px">客户端类型作为根节点，不支持挂载</div>
+      </a-form-item>
+
+      <a-form-item label="备注" name="remark">
+        <a-textarea v-model:value="formData.remark" placeholder="请输入备注说明" :rows="3" />
       </a-form-item>
     </a-form>
 
@@ -170,22 +182,23 @@ const formData = ref({
   id: undefined as number | undefined,
   parentId: undefined as number | undefined,
   name: '',
-  menuCode: '',
-  module: '',
-  nodeType: 2 as number,
-  sortOrder: 0,
-  path: '',
-  icon: '',
+  code: '',
+  type: 'MENU' as string,
   url: '',
-  meta: '',
+  path: '',
+  sortOrder: 0,
+  icon: '',
+  modelId: undefined as number | undefined,
+  modelActionId: undefined as number | undefined,
+  mountedToAdmin: false,
+  remark: '',
 })
 
 // 表单验证规则
-const rules = {
+const rules: any = {
   name: [{ required: true, message: '请输入资源名称', trigger: 'blur' }],
-  menuCode: [{ required: true, message: '请输入菜单编码', trigger: 'blur' }],
-  module: [{ required: true, message: '请输入业务模块', trigger: 'blur' }],
-  nodeType: [{ required: true, message: '请选择节点类型', trigger: 'change' }],
+  code: [{ required: true, message: '请输入菜单编码', trigger: 'blur' }],
+  type: [{ required: true, message: '请选择菜单类型', trigger: 'change' }],
 }
 
 // 计算属性
@@ -197,7 +210,10 @@ const modalVisible = computed({
 const isEdit = computed(() => !!props.editData)
 
 const treeData = computed(() => {
-  return convertToTreeSelect(resourceModule.state.resourceTree)
+  // 使用 resources 而不是 resourceTree，因为 ResourceManagement 加载数据到 resources
+  const resources = resourceModule.state.resources
+  console.log('📋 [ResourceForm] resources:', resources)
+  return convertToTreeSelect(resources as MenuTreeNode[])
 })
 
 const availableLibraries = computed(() => {
@@ -207,7 +223,7 @@ const availableLibraries = computed(() => {
 // 方法
 const convertToTreeSelect = (nodes: MenuTreeNode[]): any[] => {
   return nodes
-    .filter(node => node.nodeType === 1) // 只显示文件夹类型
+    .filter(node => node.type === 'DIRECTORY' || node.type === 'CLIENT') // 只显示目录和客户端类型
     .map(node => ({
       value: node.id,
       title: node.name,
@@ -220,14 +236,16 @@ const resetForm = () => {
     id: undefined,
     parentId: undefined,
     name: '',
-    menuCode: '',
-    module: '',
-    nodeType: 2,
-    sortOrder: 0,
-    path: '',
-    icon: '',
+    code: '',
+    type: 'MENU',
     url: '',
-    meta: '',
+    path: '',
+    sortOrder: 0,
+    icon: '',
+    modelId: undefined,
+    modelActionId: undefined,
+    mountedToAdmin: false,
+    remark: '',
   }
   formRef.value?.clearValidate()
 }
@@ -238,14 +256,16 @@ const loadFormData = () => {
       id: props.editData.id,
       parentId: props.editData.parentId || undefined,
       name: props.editData.name,
-      menuCode: props.editData.menuCode,
-      module: props.editData.module,
-      nodeType: props.editData.nodeType,
-      sortOrder: props.editData.sortOrder,
-      path: props.editData.path || '',
-      icon: props.editData.icon || '',
+      code: props.editData.code,
+      type: props.editData.type,
       url: props.editData.url || '',
-      meta: props.editData.meta || '',
+      path: props.editData.path || '',
+      sortOrder: props.editData.sortOrder,
+      icon: props.editData.icon || '',
+      modelId: props.editData.modelId,
+      modelActionId: props.editData.modelActionId,
+      mountedToAdmin: props.editData.mountedToAdmin || false,
+      remark: props.editData.remark || '',
     }
   } else {
     resetForm()
@@ -422,7 +442,18 @@ const getSelectedIconComponent = () => {
   return null
 }
 
-// 监听
+// 监听菜单类型变化，客户端类型不支持挂载
+watch(
+  () => formData.value.type,
+  newType => {
+    if (newType === 'CLIENT') {
+      // 客户端类型作为根节点，不支持挂载
+      formData.value.mountedToAdmin = false
+    }
+  }
+)
+
+// 监听弹窗显示状态
 watch(
   () => props.visible,
   val => {
@@ -430,9 +461,12 @@ watch(
       loadFormData()
       loadIcons() // 加载图标列表
       iconSearchQuery.value = '' // 重置搜索
-      // 加载资源树用于父级选择
-      if (resourceModule.state.resourceTree.length === 0) {
-        resourceModule.dispatch('fetchResourceTree')
+      // 加载资源数据用于父级选择
+      if (resourceModule.state.resources.length === 0) {
+        console.log('📋 [ResourceForm] 资源数据为空，重新加载')
+        resourceModule.dispatch('fetchResources')
+      } else {
+        console.log('📋 [ResourceForm] 资源数据已存在，数量:', resourceModule.state.resources.length)
       }
     } else {
       // 清理定时器
@@ -442,6 +476,18 @@ watch(
       }
     }
   }
+)
+
+// 监听编辑数据变化，实时同步挂载状态
+watch(
+  () => props.editData,
+  newData => {
+    if (newData && props.visible) {
+      // 只更新挂载状态，避免覆盖用户正在编辑的其他字段
+      formData.value.mountedToAdmin = newData.mountedToAdmin || false
+    }
+  },
+  { deep: true }
 )
 </script>
 

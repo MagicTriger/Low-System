@@ -1,15 +1,45 @@
 <template>
   <BaseLayout
     :config="layoutConfig"
-    :menu-data="adminMenuTree"
     :user-info="userInfo"
-    @menu-click="handleMenuClick"
+    :notification-count="notificationCount"
     @icon-library-click="handleIconLibraryClick"
     @notification-click="handleNotificationClick"
     @settings-click="handleSettingsClick"
     @user-action="handleUserAction"
     @avatar-updated="handleAvatarUpdated"
   >
+    <!-- 侧边栏 -->
+    <template #sidebar="{ collapsed }">
+      <div class="sidebar-container">
+        <!-- 用户头像区域 -->
+        <div class="user-avatar-section" :class="{ collapsed }">
+          <a-avatar :size="collapsed ? 40 : 64" :style="{ backgroundColor: '#f6bb42' }">
+            <template v-if="userInfo?.avatar">
+              <img :src="userInfo.avatar" alt="用户头像" />
+            </template>
+            <template v-else>
+              {{ userInitial }}
+            </template>
+          </a-avatar>
+          <div v-if="!collapsed" class="user-info">
+            <div class="user-name">{{ userInfo?.name }}</div>
+            <div class="user-role">{{ userInfo?.role }}</div>
+          </div>
+        </div>
+
+        <!-- 菜单区域 -->
+        <a-menu v-model:selectedKeys="selectedKeys" mode="inline" theme="dark" :inline-collapsed="collapsed" class="sidebar-menu">
+          <a-menu-item v-for="item in adminMenuTree" :key="item.url" @click="handleMenuClick(item)">
+            <template #icon>
+              <component :is="getMenuIcon(item.icon)" />
+            </template>
+            <span>{{ item.name }}</span>
+          </a-menu-item>
+        </a-menu>
+      </div>
+    </template>
+
     <!-- 内容区 -->
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
@@ -20,58 +50,104 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { useModule } from '@/core/state/helpers'
-import type { MenuTreeNode } from '@/core/api/menu'
-import type { UserInfo } from '@/core/layout/types'
+import { FolderOutlined, DashboardOutlined, TeamOutlined, FileTextOutlined } from '@ant-design/icons-vue'
 
 // 导入统一布局组件和配置
 import { BaseLayout } from '@/core/layout/ui'
 import { getAdminLayoutConfig } from '../config/layout'
+import { useModule } from '@/core/state/helpers'
+import type { MenuTreeNode } from '@/core/api/menu'
 
-// 响应式数据
-const adminMenuTree = ref<MenuTreeNode[]>([])
-const loading = ref(false)
-
-// 路由
 const router = useRouter()
+const route = useRoute()
+const notificationCount = ref(3)
+const selectedKeys = ref<string[]>([])
 
 // 状态管理
 const resourceModule = useModule('resource')
 const authModule = useModule('auth')
 
-// 布局配置
-const layoutConfig = computed(() => {
-  const config = getAdminLayoutConfig()
-  // 动态更新用户信息
-  if (config.sidebar.userInfo && authModule.state.user) {
-    config.sidebar.userInfo = {
-      name: authModule.state.user.username || '管理员',
-      avatar: authModule.state.user.avatar || '',
-      role: authModule.state.user.role || '系统管理员',
-    }
-  }
-  return config
-})
+// 响应式数据
+const adminMenuTree = ref<MenuTreeNode[]>([])
+const loading = ref(false)
 
 // 用户信息
-const userInfo = computed<UserInfo | undefined>(() => {
-  if (!authModule.state.user) return undefined
+const userInfo = computed(() => {
+  const user = authModule.state.userInfo
+  const permissionInfo = authModule.state.permissionInfo
+
+  // 调试日志
+  console.log('🔍 [Layout] 用户信息:', user)
+  console.log('🔍 [Layout] 权限信息:', permissionInfo)
+
+  if (user) {
+    // 从permissionInfo获取角色名称
+    const roleNames = permissionInfo?.roleNames || []
+    const roleName = roleNames.length > 0 ? roleNames.join(', ') : '管理员'
+
+    console.log('🔍 [Layout] 角色名称数组:', roleNames)
+    console.log('🔍 [Layout] 最终角色:', roleName)
+    console.log('🔍 [Layout] 最终用户名:', user.displayName || user.username || '用户')
+
+    return {
+      name: user.displayName || user.username || '用户',
+      avatar: user.avatar,
+      role: roleName,
+    }
+  }
+
+  console.warn('⚠️ [Layout] 用户信息为空，使用默认值')
   return {
-    name: authModule.state.user.username || '管理员',
-    avatar: authModule.state.user.avatar || '',
-    role: authModule.state.user.role || '系统管理员',
+    name: '用户',
+    avatar: undefined,
+    role: '管理员',
   }
 })
+
+// 用户名首字母
+const userInitial = computed(() => {
+  const name = userInfo.value.name
+  if (/[\u4e00-\u9fa5]/.test(name)) {
+    return name.charAt(0)
+  }
+  return name.charAt(0).toUpperCase()
+})
+
+// 布局配置
+const layoutConfig = computed(() => getAdminLayoutConfig())
 
 // 加载管理端菜单树
 const loadAdminMenuTree = async () => {
   try {
     loading.value = true
     await resourceModule.dispatch('fetchAdminMenuTree')
-    adminMenuTree.value = resourceModule.state.adminMenuTree
+
+    // 获取菜单数据并验证类型
+    const menuData = resourceModule.state.adminMenuTree
+
+    // 确保是数组
+    if (Array.isArray(menuData)) {
+      adminMenuTree.value = menuData
+      console.log('📋 管理端菜单数据:', adminMenuTree.value)
+      console.log('📊 菜单数量:', adminMenuTree.value.length)
+
+      // 过滤掉无效的菜单项（没有名称的）
+      adminMenuTree.value = adminMenuTree.value.filter(item => item.name && item.name.trim() !== '')
+      console.log('✅ 过滤后的菜单数量:', adminMenuTree.value.length)
+
+      // 注册动态路由
+      if (adminMenuTree.value.length > 0) {
+        const { registerDynamicRoutes } = await import('../router')
+        registerDynamicRoutes(router, adminMenuTree.value)
+        console.log('✅ 动态路由已注册')
+      }
+    } else {
+      console.warn('⚠️ 菜单数据不是数组格式:', menuData)
+      adminMenuTree.value = []
+    }
   } catch (error) {
     console.error('加载管理端菜单失败:', error)
     message.error('加载菜单失败')
@@ -83,9 +159,86 @@ const loadAdminMenuTree = async () => {
 
 // 处理菜单点击
 const handleMenuClick = (menuItem: MenuTreeNode) => {
-  if (menuItem.path) {
-    router.push(menuItem.path)
+  console.log('[Layout] 菜单点击:', menuItem)
+
+  // 使用 url 或 path 作为路由路径
+  const routeUrl = menuItem.url || menuItem.path
+
+  if (routeUrl) {
+    // 确保路径以 /admin 开头
+    let targetPath = routeUrl
+    if (!targetPath.startsWith('/admin')) {
+      targetPath = `/admin/${targetPath.startsWith('/') ? targetPath.slice(1) : targetPath}`
+    }
+
+    console.log('[Layout] 跳转到:', targetPath)
+    router.push(targetPath)
+  } else {
+    console.warn('[Layout] 菜单项没有URL:', menuItem)
   }
+}
+
+// 根据当前路由更新选中的菜单
+const updateSelectedKeys = () => {
+  const currentPath = route.path
+  console.log('[Layout] 当前路由:', currentPath)
+
+  // 查找匹配的菜单项
+  const findMatchingMenu = (menus: MenuTreeNode[], path: string): string | null => {
+    for (const menu of menus) {
+      // 使用 url 或 path
+      const routeUrl = menu.url || menu.path
+      if (!routeUrl) continue
+
+      // 构建完整路径
+      let menuPath = routeUrl
+      if (!menuPath.startsWith('/admin')) {
+        menuPath = `/admin/${menuPath.startsWith('/') ? menuPath.slice(1) : menuPath}`
+      }
+
+      console.log('[Layout] 比较菜单路径:', menuPath, '当前路径:', path)
+
+      if (menuPath === path) {
+        return routeUrl
+      }
+
+      // 递归查找子菜单
+      if (menu.children && menu.children.length > 0) {
+        const found = findMatchingMenu(menu.children, path)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  const matchedKey = findMatchingMenu(adminMenuTree.value, currentPath)
+  if (matchedKey) {
+    selectedKeys.value = [matchedKey]
+    console.log('[Layout] 更新选中菜单:', selectedKeys.value)
+  } else {
+    selectedKeys.value = []
+    console.log('[Layout] 没有匹配的菜单')
+  }
+}
+
+// 监听路由变化
+watch(
+  () => route.path,
+  () => {
+    updateSelectedKeys()
+  },
+  { immediate: true }
+)
+
+// 获取菜单图标
+const getMenuIcon = (iconName?: string) => {
+  const iconMap: Record<string, any> = {
+    dashboard: DashboardOutlined,
+    folder: FolderOutlined,
+    team: TeamOutlined,
+    file: FileTextOutlined,
+  }
+  return iconMap[iconName || 'folder'] || FolderOutlined
 }
 
 // 处理图标库点击
@@ -109,9 +262,6 @@ const handleUserAction = async (action: string) => {
     case 'profile':
       router.push('/admin/profile')
       break
-    case 'avatar':
-      // 头像管理由 UserDropdown 内部处理
-      break
     case 'settings':
       router.push('/admin/settings')
       break
@@ -131,73 +281,19 @@ const handleUserAction = async (action: string) => {
 // 处理头像更新
 const handleAvatarUpdated = async (avatarUrl: string) => {
   try {
-    // 更新状态管理
     await authModule.dispatch('updateUserAvatar', avatarUrl)
-
-    // 显示成功提示 - 优化反馈时机
-    message.success({
-      content: '头像更新成功',
-      duration: 2,
-    })
+    message.success('头像更新成功')
   } catch (error) {
     console.error('更新头像失败:', error)
-    handleAvatarError(error)
+    message.error('更新头像失败')
   }
-}
-
-// 统一错误处理函数
-const handleAvatarError = (error: any) => {
-  console.error('头像操作失败:', error)
-
-  let errorMessage = '操作失败'
-  let duration = 3
-
-  if (error.response) {
-    const { status, data } = error.response
-
-    switch (status) {
-      case 400:
-        errorMessage = data.message || '请求参数错误'
-        break
-      case 401:
-        errorMessage = '认证失败，请重新登录'
-        duration = 4
-        setTimeout(() => {
-          router.push('/admin/login')
-        }, 2000)
-        break
-      case 403:
-        errorMessage = '权限不足'
-        break
-      case 413:
-        errorMessage = '文件大小超过限制（最大2MB）'
-        break
-      case 415:
-        errorMessage = '不支持的文件类型，请上传 JPG、PNG 或 GIF 格式'
-        duration = 4
-        break
-      case 500:
-        errorMessage = '服务器错误，请稍后重试'
-        break
-      default:
-        errorMessage = data.message || '操作失败，请稍后重试'
-    }
-  } else if (error.request) {
-    errorMessage = '网络连接失败，请检查网络设置'
-    duration = 4
-  } else {
-    errorMessage = error.message || '操作失败'
-  }
-
-  message.error({
-    content: errorMessage,
-    duration,
-  })
 }
 
 // 组件挂载时加载菜单
-onMounted(() => {
-  loadAdminMenuTree()
+onMounted(async () => {
+  await loadAdminMenuTree()
+  // 加载完菜单后更新选中状态
+  updateSelectedKeys()
 })
 </script>
 
@@ -211,5 +307,79 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 侧边栏容器 */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #001529;
+}
+
+/* 用户头像区域 */
+.user-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s;
+}
+
+.user-avatar-section.collapsed {
+  padding: 16px 12px;
+}
+
+.user-info {
+  margin-top: 12px;
+  text-align: center;
+  width: 100%;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.user-role {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* 菜单区域 */
+.sidebar-menu {
+  flex: 1;
+  border-right: 0;
+  overflow-y: auto;
+}
+
+/* 菜单选中项 - 黄色 */
+.sidebar-menu :deep(.ant-menu-item-selected) {
+  background-color: #f6bb42 !important;
+  color: #000 !important;
+}
+
+.sidebar-menu :deep(.ant-menu-item-selected::after) {
+  border-right-color: #f6bb42 !important;
+}
+
+/* 菜单项 hover 效果 */
+.sidebar-menu :deep(.ant-menu-item:hover) {
+  background-color: rgba(246, 187, 66, 0.2) !important;
+  color: #f6bb42 !important;
+}
+
+/* 菜单图标颜色 */
+.sidebar-menu :deep(.ant-menu-item-selected .anticon) {
+  color: #000 !important;
+}
+
+.sidebar-menu :deep(.ant-menu-item:hover .anticon) {
+  color: #f6bb42 !important;
 }
 </style>

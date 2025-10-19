@@ -34,6 +34,7 @@ import DashboardContainer from './dashboard/DashboardContainer.vue'
 
 // 自定义控件
 import CustomComponent from './custom/CustomComponent.vue'
+import UserManagementComponent from './custom/UserManagementComponent.vue'
 
 // 输入控件
 import TextInput from './input/TextInput.vue'
@@ -1268,9 +1269,46 @@ export function registerBasicControls() {
       dataBindable: true,
       events: {},
     },
+
+    // 用户管理组件
+    {
+      kind: 'user-management',
+      kindName: '用户管理',
+      type: ControlType.Custom,
+      icon: 'team',
+      component: UserManagementComponent,
+      dataBindable: false,
+      events: {},
+      panels: {
+        extends: ['basic', 'layout', 'style'],
+        custom: [
+          {
+            group: 'component' as any,
+            title: '组件属性',
+            icon: 'SettingOutlined',
+            fields: [
+              {
+                key: 'pageSize',
+                label: '每页条数',
+                type: 'number' as any,
+                defaultValue: 10,
+                min: 5,
+                max: 100,
+                layout: { span: 12 },
+              },
+              {
+                key: 'showSearch',
+                label: '显示搜索栏',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 12 },
+              },
+            ],
+          },
+        ],
+      },
+    },
   ]
 
-  console.log(`📋 Registering ${definitions.length} control definitions`)
   registerControlDefinitions(definitions)
-  console.log(`✅ Total registered controls: ${Object.keys(definitions).length}`)
 }

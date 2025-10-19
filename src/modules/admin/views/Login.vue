@@ -2,7 +2,7 @@
   <LoginPage
     title="管理端登录"
     system-name="资源管理系统"
-    redirect-path="/admin/dashboard"
+    redirect-path="/admin/Layout"
     :show-wechat-login="false"
     :features="[
       { icon: '🚀', text: '快速管理' },
@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import LoginPage from '@/core/auth/LoginPage.vue'
+import LoginPage from '@/modules/login/LoginPage.vue'
 </script>
 
 <style scoped>

@@ -85,8 +85,8 @@ const router = useRouter()
 
 // 返回首页
 const goHome = () => {
-  // 检查是否有token
-  const token = localStorage.getItem('token')
+  // 检查是否有token（注意：键名是 accessToken）
+  const token = localStorage.getItem('accessToken')
   if (token) {
     // 有token，跳转到资源管理页面
     router.push('/designer/resource')

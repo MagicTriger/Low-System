@@ -16,14 +16,8 @@ import AppWrapper from './components/AppWrapper.vue'
  * 创建应用路由
  */
 function createAppRouter(rootRoutes: RouteRecordRaw[] = [], childrenRoutes: RouteRecordRaw[] = []) {
-  const routes: RouteRecordRaw[] = [
-    {
-      path: '/',
-      redirect: '/dashboard',
-    },
-    ...rootRoutes,
-    ...childrenRoutes,
-  ]
+  // 不添加默认的根路径重定向，让各模块自己定义
+  const routes: RouteRecordRaw[] = [...rootRoutes, ...childrenRoutes]
 
   return createRouter({
     history: createWebHistory(),

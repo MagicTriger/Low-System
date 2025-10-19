@@ -73,6 +73,31 @@ export class ApiClient implements IApiClient {
 
       return config
     })
+
+    // 添加 Path 拦截器（延迟导入以避免循环依赖）
+    this.addRequestInterceptor(config => {
+      try {
+        const currentRoute = window.location.pathname
+        const stateManager = (window as any).__STATE_MANAGER__
+        if (stateManager) {
+          const resourceModule = stateManager.getModule('resource')
+          if (resourceModule && resourceModule.getters) {
+            // 修复：getCurrentPath是一个返回函数的getter
+            const getCurrentPathFn = resourceModule.getters.getCurrentPath
+            if (typeof getCurrentPathFn === 'function') {
+              const path = getCurrentPathFn(currentRoute)
+              if (path) {
+                config.headers = config.headers || {}
+                config.headers['path'] = path
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[PathInterceptor] 执行失败:', error)
+      }
+      return config
+    })
   }
 
   /**

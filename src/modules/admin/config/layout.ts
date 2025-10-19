@@ -59,12 +59,12 @@ export const adminLayoutConfig: LayoutConfig = {
    * 主题配置
    */
   theme: {
-    // 主色调 (Dashgum 风格的橙色)
+    // 主色调 (橙黄色)
     primaryColor: '#f6bb42',
-    // 侧边栏背景色 (Dashgum 深色背景)
-    sidebarBg: '#2f4050',
-    // 头部背景色
-    headerBg: '#ffffff',
+    // 侧边栏背景色 (深蓝色，与设计端一致)
+    sidebarBg: '#001529',
+    // 头部背景色 (橙黄色渐变)
+    headerBg: 'linear-gradient(135deg, #f6bb42 0%, #f8c555 100%)',
     // 主要文本颜色
     textPrimary: '#ffffff',
     // 次要文本颜色

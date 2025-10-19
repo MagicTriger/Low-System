@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { message, notification } from 'ant-design-vue'
-import type { ApiResponse } from '../types'
+import type { ApiResponse } from './types'
 import { global, CONSTANTS, ERROR_MESSAGES } from '@/core/global'
 import { useState, useDispatch } from '@/core/state/helpers'
 

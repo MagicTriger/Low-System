@@ -9,8 +9,8 @@ export const global: SystemConfig = {
   theme: {
     primaryColor: '#1890ff',
     darkMode: false,
-    compactMode: false
-  }
+    compactMode: false,
+  },
 }
 
 // 环境变量
@@ -19,7 +19,7 @@ export const env = {
   isProd: import.meta.env.PROD,
   mode: import.meta.env.MODE,
   apiUrl: import.meta.env.VITE_API_URL,
-  uploadUrl: import.meta.env.VITE_UPLOAD_URL
+  uploadUrl: import.meta.env.VITE_UPLOAD_URL,
 }
 
 // 常量定义
@@ -29,16 +29,16 @@ export const CONSTANTS = {
     USER_INFO: 'user_info',
     TOKEN: 'access_token',
     THEME: 'theme_config',
-    LANGUAGE: 'language'
+    LANGUAGE: 'language',
   },
-  
+
   // 默认配置
   DEFAULTS: {
     PAGE_SIZE: 20,
     TIMEOUT: 30000,
-    DEBOUNCE_DELAY: 300
+    DEBOUNCE_DELAY: 300,
   },
-  
+
   // 控件类型
   CONTROL_TYPES: {
     COMMON: 'common',
@@ -49,33 +49,33 @@ export const CONSTANTS = {
     BI: 'bi',
     SVG: 'svg',
     MOBILE: 'mobile',
-    CUSTOM: 'custom'
+    CUSTOM: 'custom',
   },
-  
+
   // 事件类型
   EVENT_TYPES: {
     CONTROL: 'control',
     DATA_SOURCE: 'dataSource',
     DATA_TRANSFER: 'dataTransfer',
-    GLOBAL: 'global'
+    GLOBAL: 'global',
   },
-  
+
   // 数据源类型
   DATA_SOURCE_TYPES: {
     API: 'api',
     STATIC: 'static',
-    MOCK: 'mock'
+    MOCK: 'mock',
   },
-  
+
   // HTTP方法
   HTTP_METHODS: {
     GET: 'GET',
     POST: 'POST',
     PUT: 'PUT',
     DELETE: 'DELETE',
-    PATCH: 'PATCH'
+    PATCH: 'PATCH',
   },
-  
+
   // 响应状态码
   HTTP_STATUS: {
     OK: 200,
@@ -85,8 +85,8 @@ export const CONSTANTS = {
     UNAUTHORIZED: 401,
     FORBIDDEN: 403,
     NOT_FOUND: 404,
-    INTERNAL_SERVER_ERROR: 500
-  }
+    INTERNAL_SERVER_ERROR: 500,
+  },
 }
 
 // 正则表达式
@@ -97,7 +97,7 @@ export const REGEX = {
   COLOR: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/,
   NUMBER: /^\d+(\.\d+)?$/,
   CHINESE: /[\u4e00-\u9fa5]/,
-  IDENTIFIER: /^[a-zA-Z_$][a-zA-Z0-9_$]*$/
+  IDENTIFIER: /^[a-zA-Z_$][a-zA-Z0-9_$]*$/,
 }
 
 // 错误消息
@@ -109,7 +109,7 @@ export const ERROR_MESSAGES = {
   FORBIDDEN: '权限不足，无法访问该资源',
   NOT_FOUND: '请求的资源不存在',
   VALIDATION_ERROR: '数据验证失败，请检查输入内容',
-  UNKNOWN_ERROR: '未知错误，请稍后重试'
+  UNKNOWN_ERROR: '未知错误，请稍后重试',
 }
 
 // 成功消息
@@ -121,5 +121,5 @@ export const SUCCESS_MESSAGES = {
   UPLOAD_SUCCESS: '上传成功',
   COPY_SUCCESS: '复制成功',
   EXPORT_SUCCESS: '导出成功',
-  IMPORT_SUCCESS: '导入成功'
+  IMPORT_SUCCESS: '导入成功',
 }

@@ -9,6 +9,15 @@ import { onMounted } from 'vue'
 import { useModule } from '@/core/state/helpers'
 
 const app = useModule('app')
+const auth = useModule('auth')
+
+// 在setup阶段立即恢复认证状态
+auth.dispatch('restoreAuth')
+
+// 开发环境日志记录
+if (import.meta.env.DEV) {
+  console.log('[Designer App] 认证状态恢复已触发')
+}
 
 onMounted(() => {
   app.commit('setPageTitle', '设计器')

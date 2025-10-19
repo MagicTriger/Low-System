@@ -23,6 +23,35 @@ function getGlobalStateManager(): StateManager {
 }
 
 /**
+ * 扩展StateManager，添加getModule方法
+ */
+declare module '../StateManager' {
+  interface StateManager {
+    getModule(name: string): any
+  }
+}
+
+// 为StateManager添加getModule方法
+if (typeof window !== 'undefined') {
+  const originalGetGlobalStateManager = getGlobalStateManager
+  try {
+    const sm = originalGetGlobalStateManager()
+    if (sm && !(sm as any).getModule) {
+      ;(sm as any).getModule = function (name: string) {
+        return {
+          state: this.getState(name),
+          getters: this.getGetters(),
+          commit: this.commit.bind(this),
+          dispatch: this.dispatch.bind(this),
+        }
+      }
+    }
+  } catch (e) {
+    // StateManager尚未初始化
+  }
+}
+
+/**
  * 注册所有状态模块
  *
  * @param stateManager - StateManager实例，默认使用全局实例
@@ -147,6 +176,23 @@ export async function initializeStateModules(stateManager?: StateManager): Promi
     }
   } catch (error) {
     console.warn('User initialization failed:', error)
+  }
+
+  // 初始化Resource模块（获取用户菜单）
+  try {
+    const accessToken = localStorage.getItem('accessToken')
+    if (accessToken) {
+      // 如果已登录，获取用户菜单
+      await sm.dispatch('resource/fetchCurrentUserMenus')
+      console.log('✅ User menus loaded successfully')
+    }
+  } catch (error) {
+    console.warn('Resource initialization failed:', error)
+  }
+
+  // 将StateManager挂载到全局，供拦截器使用
+  if (typeof window !== 'undefined') {
+    ;(window as any).__STATE_MANAGER__ = sm
   }
 
   console.log('✅ All state modules initialized successfully')

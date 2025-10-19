@@ -2,6 +2,9 @@ import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 import { notifyWarning, notifyPermissionError } from '@/core/notification'
 
+// 直接导入组件用于测试
+import DesignerNew from '@/modules/designer/views/DesignerNew.vue'
+
 // 获取StateManager实例
 function getStateManager() {
   if (typeof window !== 'undefined' && (window as any).__MIGRATION_SYSTEM__) {
@@ -11,16 +14,16 @@ function getStateManager() {
 }
 
 // 使用完整的设计器组件
-const Layout = () => import('../views/Layout.vue')
-const ResourceManagement = () => import('../views/ResourceManagement.vue')
+const Layout = () => import('@/modules/designer/views/Layout.vue')
+const ResourceManagement = () => import('@/modules/designer/views/ResourceManagement.vue')
 
 export const routes: RouteRecordRaw[] = [
   // 设计端根路径重定向
   {
     path: '/',
     redirect: () => {
-      // 检查是否已登录
-      const token = localStorage.getItem('token')
+      // 检查是否已登录（注意：键名是 accessToken）
+      const token = localStorage.getItem('accessToken')
       return token ? '/designer/resource' : '/designer/login'
     },
   },
@@ -28,7 +31,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/designer/login',
     name: 'DesignerLogin',
-    component: () => import('../views/Login.vue'),
+    component: () => import('@/modules/designer/views/Login.vue'),
     meta: {
       title: '设计端登录',
       requiresAuth: false,
@@ -58,7 +61,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/designer/resource/:url',
     name: 'DesignerEditor',
-    component: () => import('../views/DesignerNew.vue'),
+    component: DesignerNew,
     meta: {
       title: '设计器',
       requiresAuth: true,
@@ -68,7 +71,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/preview/:id',
     name: 'DesignerPreview',
-    component: () => import('../views/Preview.vue'),
+    component: () => import('@/modules/designer/views/Preview.vue'),
     meta: {
       title: '预览页面',
       requiresAuth: false,
@@ -78,7 +81,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/designer/:pathMatch(.*)*',
     name: 'DesignerNotFound',
-    component: () => import('../views/NotFound.vue'),
+    component: () => import('@/modules/designer/views/NotFound.vue'),
     meta: {
       title: '页面不存在',
     },
