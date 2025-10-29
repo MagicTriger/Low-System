@@ -1,13 +1,5 @@
 import { ref, computed, type Ref } from 'vue'
-import type { 
-  RootView, 
-  View, 
-  Control, 
-  ControlNode, 
-  ResourceDTO, 
-  DesignDTO,
-  DataSourceOption
-} from '../types'
+import type { RootView, View, Control, ControlNode, ResourceDTO, DesignDTO, DataSourceOption } from '../types'
 import { RootViewMode } from '../types'
 import { ControlTreeBuilder } from './base'
 import { DataSource } from '../engines/data-source'
@@ -20,17 +12,17 @@ import { DataTransfer } from '../engines/data-transfer'
 export class RootViewContext {
   // 页面资源
   public page: ResourceDTO
-  
+
   // 渲染模式
   public mode: RootViewMode
-  
+
   // 设计数据
   public data?: DesignDTO
-  
+
   // 核心状态
   private _rootView = ref<RootView>()
   private _rootViewJson = ref<string>()
-  
+
   // 计算属性
   public readonly rootView = computed<RootView>({
     get: () => this._rootView.value!,
@@ -39,16 +31,21 @@ export class RootViewContext {
       this._rootViewJson.value = JSON.stringify(v, null, 2)
     },
   })
-  
+
   public readonly rootViewJson = computed(() => this._rootViewJson.value)
 
   // 视图管理
   public views = ref<View[]>([])
-  public viewIdMap = computed<Record<string, View>>(() => {
+  public readonly viewIdMap = computed<Record<string, View>>(() => {
     const map: Record<string, View> = {}
-    this.views.value.forEach(v => {
-      map[v.id] = v
-    })
+    const viewsArray = this.views.value
+    if (viewsArray && Array.isArray(viewsArray)) {
+      viewsArray.forEach(v => {
+        if (v && v.id) {
+          map[v.id] = v
+        }
+      })
+    }
     return map
   })
 
@@ -58,7 +55,7 @@ export class RootViewContext {
     inst: Ref<Record<string, DataSource>>
   } = {
     defs: ref({}),
-    inst: ref({})
+    inst: ref({}),
   }
 
   // 数据流管理
@@ -67,28 +64,49 @@ export class RootViewContext {
   // 控件管理
   public ctrlTree = ref<Record<string, ControlNode>>({})
   public activeCtrls = ref<Record<string, Control>>({})
-  
+
   // 控件实例引用
   private controlRefs: Record<string, any> = {}
   private instIdCounter = 0
 
-  constructor(
-    page: ResourceDTO,
-    mode: RootViewMode = RootViewMode.Runtime,
-    data?: DesignDTO
-  ) {
+  constructor(page: ResourceDTO, mode: RootViewMode = RootViewMode.Runtime, data?: DesignDTO) {
     this.page = page
     this.mode = mode
     this.data = data
+
+    // 同步初始化关键数据，确保 views 和 viewIdMap 立即可用
+    this.loadPageSync()
+
+    // 异步加载其他资源
     this.init()
   }
 
   /**
-   * 初始化上下文
+   * 同步加载页面数据（确保 views 立即可用）
+   */
+  private loadPageSync() {
+    if (this.data) {
+      this.processDesignData(this.data)
+    } else {
+      // 创建默认数据
+      const defaultData: DesignDTO = {
+        rootView: {
+          id: 'root',
+          name: '根视图',
+          controls: [],
+        },
+        dataSources: {},
+        dataTransfers: {},
+      }
+      this.processDesignData(defaultData)
+    }
+  }
+
+  /**
+   * 异步初始化上下文
    */
   private async init() {
     try {
-      await this.loadPage()
       await this.loadDataSources()
       await this.loadDataTransfer()
       this.makeControlTree()
@@ -98,25 +116,10 @@ export class RootViewContext {
   }
 
   /**
-   * 加载页面数据
+   * 加载页面数据（已废弃，使用 loadPageSync）
    */
   private async loadPage() {
-    if (this.data) {
-      this.processDesignData(this.data)
-    } else {
-      // 这里应该从API加载页面数据
-      // 暂时创建默认数据
-      const defaultData: DesignDTO = {
-        rootView: {
-          id: 'root',
-          name: '根视图',
-          controls: []
-        },
-        dataSources: {},
-        dataTransfers: {}
-      }
-      this.processDesignData(defaultData)
-    }
+    // 此方法已被 loadPageSync 替代
   }
 
   /**
@@ -125,13 +128,13 @@ export class RootViewContext {
   private processDesignData(data: DesignDTO) {
     // 设置根视图
     this._rootView.value = data.rootView
-    
+
     // 设置视图列表
     this.views.value = data.rootView.views || [data.rootView]
-    
+
     // 设置数据源定义
     this.dataSources.defs.value = data.dataSources || {}
-    
+
     // 设置数据流定义
     Object.entries(data.dataTransfers || {}).forEach(([id, config]) => {
       this.dataTransfers[id] = new DataTransfer(config)
@@ -144,7 +147,7 @@ export class RootViewContext {
   private async loadDataSources() {
     const defs = this.dataSources.defs.value
     const instances: Record<string, DataSource> = {}
-    
+
     for (const [id, def] of Object.entries(defs)) {
       try {
         const dataSource = new DataSource(def)
@@ -153,7 +156,7 @@ export class RootViewContext {
         console.error(`数据源 ${id} 初始化失败:`, error)
       }
     }
-    
+
     this.dataSources.inst.value = instances
   }
 
@@ -169,19 +172,19 @@ export class RootViewContext {
    */
   private makeControlTree() {
     const tree: Record<string, ControlNode> = {}
-    
+
     // 处理根视图控件
     if (this._rootView.value?.controls) {
       const rootTree = ControlTreeBuilder.build(this._rootView.value.controls)
       Object.assign(tree, rootTree)
     }
-    
+
     // 处理浮层控件
     if (this._rootView.value?.overlays) {
       const overlayTree = ControlTreeBuilder.build(this._rootView.value.overlays)
       Object.assign(tree, overlayTree)
     }
-    
+
     // 处理其他视图控件
     this.views.value.forEach(view => {
       if (view.id !== this._rootView.value?.id && view.controls) {
@@ -189,7 +192,7 @@ export class RootViewContext {
         Object.assign(tree, viewTree)
       }
     })
-    
+
     this.ctrlTree.value = tree
   }
 
@@ -211,7 +214,7 @@ export class RootViewContext {
       control,
       methods,
       viewId,
-      instId
+      instId,
     }
   }
 
@@ -266,9 +269,9 @@ export class RootViewContext {
       id: `view_${Date.now()}`,
       name: '新视图',
       controls: [],
-      ...view
+      ...view,
     }
-    
+
     this.views.value.push(newView)
     return newView
   }
@@ -289,11 +292,11 @@ export class RootViewContext {
    * 添加控件
    */
   public addControl(viewId: string, kind: string, options: any = {}): Control {
-    const view = this.viewIdMap.value[viewId]
+    const view = this.viewIdMap[viewId]
     if (!view) {
       throw new Error(`视图 ${viewId} 不存在`)
     }
-    
+
     const control: Control = {
       id: `${kind}_${Date.now()}`,
       kind,
@@ -303,12 +306,12 @@ export class RootViewContext {
       dataBinding: options.dataBinding,
       eventExection: options.eventExection || {},
       children: options.children || [],
-      ...options
+      ...options,
     }
-    
+
     view.controls.push(control)
     this.makeControlTree() // 重建控件树
-    
+
     return control
   }
 
@@ -316,9 +319,9 @@ export class RootViewContext {
    * 删除控件
    */
   public deleteControl(viewId: string, controlId: string): boolean {
-    const view = this.viewIdMap.value[viewId]
+    const view = this.viewIdMap[viewId]
     if (!view) return false
-    
+
     const deleteFromArray = (controls: Control[]): boolean => {
       for (let i = 0; i < controls.length; i++) {
         if (controls[i].id === controlId) {
@@ -331,17 +334,17 @@ export class RootViewContext {
       }
       return false
     }
-    
+
     const deleted = deleteFromArray(view.controls)
     if (deleted) {
       this.makeControlTree() // 重建控件树
-      
+
       // 清除活动状态
       if (this.activeCtrls.value[viewId]?.id === controlId) {
         delete this.activeCtrls.value[viewId]
       }
     }
-    
+
     return deleted
   }
 
@@ -410,7 +413,7 @@ export class RootViewContext {
       dataSources: this.dataSources,
       dataTransfers: this.dataTransfers,
       ctrlTree: this.ctrlTree,
-      activeCtrls: this.activeCtrls
+      activeCtrls: this.activeCtrls,
     }
   }
 
@@ -419,16 +422,26 @@ export class RootViewContext {
    */
   public destroy(): void {
     // 销毁数据源
-    Object.values(this.dataSources.inst.value).forEach(ds => ds.destroy())
-    
+    if (this.dataSources?.inst?.value) {
+      Object.values(this.dataSources.inst.value).forEach(ds => ds?.destroy?.())
+    }
+
     // 销毁数据流
-    Object.values(this.dataTransfers).forEach(dt => dt.stop())
-    
+    if (this.dataTransfers) {
+      Object.values(this.dataTransfers).forEach(dt => dt?.stop?.())
+    }
+
     // 清理引用
     this.controlRefs = {}
-    this.views.value = []
-    this.ctrlTree.value = {}
-    this.activeCtrls.value = {}
+    if (this.views?.value) {
+      this.views.value = []
+    }
+    if (this.ctrlTree?.value) {
+      this.ctrlTree.value = {}
+    }
+    if (this.activeCtrls?.value) {
+      this.activeCtrls.value = {}
+    }
   }
 
   // 静态方法：提供键用于依赖注入

@@ -386,21 +386,22 @@ const handleDesigner = (resource: MenuResource) => {
       return
     }
 
+    // 使用完整路径跳转，确保name参数被正确传递
+    const encodedName = encodeURIComponent(resource.name)
+    const path = `/designer/resource/${resource.url}/${encodedName}`
+
+    logger.debug('跳转到设计器', { path, url: resource.url, name: resource.name })
+
     // 使用Vue Router跳转到设计器编辑页面
     router
-      .push({
-        name: 'DesignerEditor',
-        params: {
-          url: resource.url,
-        },
-      })
+      .push(path)
       .then(() => {
         notify.info('正在进入设计器', resource.name)
       })
       .catch(error => {
         logger.error('路由跳转失败', error)
         // 如果路由跳转失败，尝试直接跳转
-        window.location.href = `/designer/resource/${resource.url}`
+        window.location.href = path
       })
   } catch (error: any) {
     notify.error('跳转失败', error.message || '无法访问该页面')

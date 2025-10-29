@@ -1,9 +1,9 @@
 <template>
   <div class="designer-container">
     <!-- 顶部工具栏 -->
-    <div class="designer-header">
+    <div v-if="!isPreviewMode" class="designer-header">
       <div class="header-left">
-        <h1 class="designer-title">{{ designName }}</h1>
+        <h1 class="designer-title">{{ currentCanvasTitle }}</h1>
         <a-button type="link" size="small" @click="handleRename">
           <template #icon><edit-outlined /></template>
         </a-button>
@@ -48,7 +48,7 @@
     </div>
 
     <!-- 主内容区 -->
-    <div class="designer-main">
+    <div v-if="!isPreviewMode" class="designer-main">
       <!-- 左侧组件库面板 -->
       <div class="designer-left" :style="{ width: leftPanelWidth + 'px' }">
         <!-- 调整大小手柄 -->
@@ -68,14 +68,21 @@
         <div class="outline-content-wrapper">
           <OutlineTree
             :controls="currentView?.controls || []"
+            :overlays="currentView?.overlays || []"
             :selected-control-id="selectedControlId"
             :view-id="currentView?.id || 'default'"
             :has-clipboard-data="!!designerState.clipboard.value"
+            :current-canvas="currentCanvas"
             @control-select="handleControlSelect"
             @control-copy="handleControlCopy"
             @control-delete="handleControlDelete"
             @control-move="handleControlMove"
             @control-paste="handleControlPaste"
+            @control-add-event="handleControlAddEvent"
+            @canvas-switch="handleCanvasSwitch"
+            @overlay-create="handleOverlayCreate"
+            @overlay-select="handleOverlaySelect"
+            @overlay-delete="handleOverlayDelete"
           />
         </div>
       </div>
@@ -117,13 +124,14 @@
           :zoom="zoom"
           :show-grid="showGrid"
           :is-empty="isEmpty"
+          :canvas-mode="currentCanvas"
           :drop-indicator="dropIndicator"
           @drop="handleCanvasDrop"
           @canvas-click="handleCanvasClick"
         >
           <template #controls>
             <DesignerControlRenderer
-              v-for="control in currentView?.controls || []"
+              v-for="control in currentCanvasControls"
               :key="control.id"
               :control="control"
               :selected-id="selectedControlId"
@@ -159,17 +167,23 @@
 
     <!-- 数据源配置模态框 -->
     <DataSourceConfigModal
+      v-if="!isPreviewMode"
       v-model="showDataSourceModal"
       v-model:dataSources="dataConfig.dataSources"
       v-model:dataFlows="dataConfig.dataFlows"
       v-model:operations="dataConfig.operations"
       @save="handleDataConfigSave"
     />
+
+    <!-- 预览子路由出口 -->
+    <router-view v-slot="{ Component }">
+      <component :is="Component" v-if="Component" />
+    </router-view>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, h, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h, nextTick, watch, provide } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { SaveOutlined, EyeOutlined, UndoOutlined, RedoOutlined, EditOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue'
@@ -206,6 +220,11 @@ const history = useHistoryManager({ maxEntries: 50 })
 const persistenceService = new PersistenceService()
 
 const designName = ref('未命名页面')
+
+// 画布上下文 - 用于区分页面画布和浮层画布
+const currentCanvas = ref<'page' | 'overlay'>('page')
+// 当前选中的浮层ID（用于浮层模式下的拖拽）
+const currentOverlayId = ref<string | null>(null)
 
 // 解构状态
 const {
@@ -255,8 +274,24 @@ const dataConfig = ref({
 })
 
 // 计算属性
+// 检测是否在预览模式
+const isPreviewMode = computed(() => {
+  return route.name === 'DesignerPreview'
+})
+
 const isEmpty = computed(() => {
-  return !currentView.value || currentView.value.controls.length === 0
+  if (!currentView.value) return true
+
+  if (currentCanvas.value === 'page') {
+    // 页面画布：检查页面控件是否为空
+    return currentView.value.controls.length === 0
+  } else if (currentCanvas.value === 'overlay' && currentOverlayId.value) {
+    // 浮层画布：检查当前浮层的子控件是否为空
+    const overlay = currentView.value.overlays?.find(o => o.id === currentOverlayId.value)
+    return !overlay || !overlay.children || overlay.children.length === 0
+  }
+
+  return true
 })
 
 const selectedControl = computed(() => {
@@ -269,6 +304,38 @@ const canRedo = computed(() => history.canRedo())
 
 const dropIndicator = computed(() => dragDrop.dropIndicator.value)
 
+// 当前画布标题
+const currentCanvasTitle = computed(() => {
+  if (currentCanvas.value === 'page') {
+    return designName.value
+  } else if (currentCanvas.value === 'overlay' && currentOverlayId.value) {
+    // 查找当前选中的浮层
+    const overlay = currentView.value?.overlays?.find(o => o.id === currentOverlayId.value)
+    if (overlay) {
+      return `${designName.value} - ${overlay.name || '浮层'}`
+    }
+  }
+  return designName.value
+})
+
+// 当前画布的控件列表
+const currentCanvasControls = computed(() => {
+  if (currentCanvas.value === 'page') {
+    // 页面画布：显示页面的控件
+    return currentView.value?.controls || []
+  } else if (currentCanvas.value === 'overlay' && currentOverlayId.value) {
+    // 浮层画布：显示选中浮层的子控件
+    const overlay = currentView.value?.overlays?.find(o => o.id === currentOverlayId.value)
+    if (overlay) {
+      console.log('🎨 [currentCanvasControls] Overlay children:', overlay.children?.length || 0, overlay.children)
+      return overlay.children || []
+    } else {
+      console.warn('⚠️ [currentCanvasControls] Overlay not found:', currentOverlayId.value)
+    }
+  }
+  return []
+})
+
 // 标记未保存更改
 function markAsUnsaved() {
   hasUnsavedChanges.value = true
@@ -280,10 +347,12 @@ function initializeView() {
     id: 'view_' + Date.now(),
     name: '新页面',
     controls: [],
+    overlays: [], // 初始化时不创建任何默认浮层
   }
 
   designerState.setView(view)
   hasUnsavedChanges.value = false
+  console.log('✅ [initializeView] Created empty view')
 }
 
 // 导航栏操作
@@ -367,31 +436,33 @@ function handleDataConfigSave(data: any) {
 
 async function handlePreview() {
   if (!currentView.value) {
+    message.warning('没有可预览的内容')
     return
   }
 
   try {
-    // 将当前设计数据保存到 sessionStorage 用于预览
-    const previewData = {
-      view: currentView.value,
-      dataSources: designerState.dataSources.value,
-      dataFlows: designerState.dataFlows.value,
-      dataActions: designerState.dataActions.value,
-      timestamp: Date.now(),
-    }
+    // 将当前视图数据保存到 sessionStorage 供预览组件使用
+    const PREVIEW_DATA_KEY = '__designer_preview_data__'
+    const PREVIEW_NAME_KEY = '__designer_preview_name__'
 
-    sessionStorage.setItem('preview-data', JSON.stringify(previewData))
+    sessionStorage.setItem(PREVIEW_DATA_KEY, JSON.stringify(currentView.value))
+    sessionStorage.setItem(PREVIEW_NAME_KEY, designName.value)
 
-    // 打开预览页面（使用临时预览模式）
-    const previewUrl = router.resolve({
+    console.log('[DesignerNew] Saved preview data to sessionStorage:', {
+      viewId: currentView.value.id,
+      viewName: currentView.value.name,
+      controlsCount: currentView.value.controls?.length || 0,
+      overlaysCount: currentView.value.overlays?.length || 0,
+    })
+
+    // 导航到预览子路由
+    await router.push({
       name: 'DesignerPreview',
-      params: { id: 'temp' },
-      query: { mode: 'temp' },
-    }).href
+    })
 
-    window.open(previewUrl, '_blank')
-    message.success('已打开预览')
+    message.success('已进入预览模式')
   } catch (error: any) {
+    console.error('[DesignerNew] Preview failed:', error)
     message.error('预览失败: ' + (error.message || '未知错误'))
   }
 }
@@ -521,10 +592,253 @@ function handleCanvasClick() {
   clearSelection()
 }
 
+// 画布切换处理
+function handleCanvasSwitch(canvas: 'page' | 'overlay', overlayId?: string) {
+  console.log('🎨 [DesignerNew] Canvas switch requested:', canvas, overlayId)
+
+  currentCanvas.value = canvas
+
+  if (canvas === 'overlay') {
+    if (overlayId) {
+      // 切换到指定的浮层
+      const overlay = currentView.value?.overlays?.find(o => o.id === overlayId)
+      if (overlay) {
+        currentOverlayId.value = overlayId
+        selectControl(overlayId)
+        console.log('🎭 [DesignerNew] Switched to overlay:', overlayId, overlay.name)
+        message.info(`已切换到浮层: ${overlay.name || '浮层'}`)
+      } else {
+        console.warn('⚠️ [DesignerNew] Overlay not found:', overlayId)
+        message.warning('浮层不存在')
+        // 回退到页面画布
+        currentCanvas.value = 'page'
+        currentOverlayId.value = null
+      }
+    } else if (currentView.value?.overlays && currentView.value.overlays.length > 0) {
+      // 没有指定浮层ID，选择第一个浮层
+      const firstOverlay = currentView.value.overlays[0]
+      currentOverlayId.value = firstOverlay.id
+      selectControl(firstOverlay.id)
+      console.log('🎭 [DesignerNew] Auto-selected first overlay:', firstOverlay.id, firstOverlay.name)
+      message.info(`已选择浮层: ${firstOverlay.name || '浮层'}`)
+    } else {
+      console.warn('⚠️ [DesignerNew] No overlays available')
+      message.warning('当前没有浮层，请先创建浮层')
+      // 回退到页面画布
+      currentCanvas.value = 'page'
+      currentOverlayId.value = null
+    }
+  } else if (canvas === 'page') {
+    // 切换回页面模式时，清除浮层选择
+    console.log('📄 [DesignerNew] Switched to page mode, clearing overlay selection')
+    currentOverlayId.value = null
+    clearSelection()
+  }
+
+  // 同步到设计器状态管理
+  designerState.switchCanvas(currentCanvas.value, currentOverlayId.value || undefined)
+}
+
+// 浮层创建处理
+function handleOverlayCreate(overlay: any) {
+  if (!currentView.value) {
+    console.error('❌ [DesignerNew] No current view available')
+    message.error('无法创建浮层：视图未初始化')
+    return
+  }
+
+  try {
+    // 确保 overlays 数组存在
+    if (!currentView.value.overlays) {
+      currentView.value.overlays = []
+    }
+
+    // 添加浮层到当前视图
+    currentView.value.overlays.push(overlay)
+
+    // 切换到浮层画布
+    currentCanvas.value = 'overlay'
+    currentOverlayId.value = overlay.id
+
+    // 选中新创建的浮层
+    selectControl(overlay.id)
+
+    // 记录历史
+    history.push(
+      'add-overlay',
+      {
+        overlay: JSON.parse(JSON.stringify(overlay)),
+      },
+      `创建浮层 ${overlay.name || overlay.kind}`
+    )
+
+    markAsUnsaved()
+
+    console.log('✅ [DesignerNew] Overlay created and added to view:', overlay)
+    console.log('🎭 [DesignerNew] Current overlays:', currentView.value.overlays)
+  } catch (error) {
+    console.error('❌ [DesignerNew] Failed to create overlay:', error)
+    message.error('创建浮层失败')
+  }
+}
+
+// 为控件添加事件
+function handleControlAddEvent(payload: { controlId: string; eventType: string; action: any }) {
+  try {
+    const { controlId, eventType, action } = payload
+
+    // 查找控件
+    const findControl = (controls: any[]): any => {
+      for (const control of controls) {
+        if (control.id === controlId) return control
+        if (control.children) {
+          const found = findControl(control.children)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    const control = findControl(currentView.value?.controls || [])
+    if (!control) {
+      console.warn('⚠️ [DesignerNew] Control not found:', controlId)
+      return
+    }
+
+    // 初始化 events 对象
+    if (!control.events) {
+      control.events = {}
+    }
+
+    // 初始化事件配置数组
+    if (!control.events[eventType]) {
+      control.events[eventType] = []
+    }
+
+    // 创建新版事件配置
+    const eventConfig = {
+      id: `event_${Date.now()}`,
+      eventName: eventType,
+      enabled: true,
+      actions: [action],
+    }
+
+    // 添加事件配置
+    control.events[eventType].push(eventConfig)
+
+    markAsUnsaved()
+
+    console.log('✅ [DesignerNew] Event added to control:', controlId, eventType, action)
+  } catch (error) {
+    console.error('❌ [DesignerNew] Failed to add event:', error)
+  }
+}
+
+// 浮层选择处理
+function handleOverlaySelect(overlayId: string) {
+  if (!currentView.value?.overlays) {
+    console.warn('⚠️ [DesignerNew] No overlays available')
+    return
+  }
+
+  // 查找浮层
+  const overlay = currentView.value.overlays.find(o => o.id === overlayId)
+
+  if (!overlay) {
+    console.warn('⚠️ [DesignerNew] Overlay not found:', overlayId)
+    message.warning('浮层不存在')
+    return
+  }
+
+  // 切换到浮层画布
+  currentCanvas.value = 'overlay'
+  currentOverlayId.value = overlayId
+
+  // 选中浮层
+  selectControl(overlayId)
+
+  console.log('✅ [DesignerNew] Overlay selected:', overlayId, overlay.name)
+  message.info(`已选择浮层: ${overlay.name || '浮层'}`)
+}
+
+// 浮层删除处理
+function handleOverlayDelete(overlayId: string) {
+  if (!currentView.value?.overlays) {
+    console.warn('⚠️ [DesignerNew] No overlays available')
+    return
+  }
+
+  try {
+    // 查找浮层索引
+    const overlayIndex = currentView.value.overlays.findIndex(o => o.id === overlayId)
+
+    if (overlayIndex === -1) {
+      console.warn('⚠️ [DesignerNew] Overlay not found:', overlayId)
+      message.warning('浮层不存在')
+      return
+    }
+
+    // 获取浮层信息（用于历史记录）
+    const deletedOverlay = currentView.value.overlays[overlayIndex]
+    const overlayName = deletedOverlay.name || '浮层'
+
+    // 从视图中删除浮层
+    currentView.value.overlays.splice(overlayIndex, 1)
+
+    // 清理浮层画布状态
+    designerState.removeOverlayCanvas(overlayId)
+
+    // 如果删除的是当前活动的浮层，切换到页面画布或其他浮层
+    if (currentCanvas.value === 'overlay' && currentOverlayId.value === overlayId) {
+      if (currentView.value.overlays.length > 0) {
+        // 切换到第一个可用的浮层
+        const firstOverlay = currentView.value.overlays[0]
+        currentCanvas.value = 'overlay'
+        currentOverlayId.value = firstOverlay.id
+        selectControl(firstOverlay.id)
+        console.log('✅ [DesignerNew] Switched to first available overlay:', firstOverlay.id)
+      } else {
+        // 没有其他浮层，切换到页面画布
+        currentCanvas.value = 'page'
+        currentOverlayId.value = null
+        clearSelection()
+        console.log('✅ [DesignerNew] Switched to page canvas')
+      }
+    }
+
+    // 记录历史
+    history.push(
+      'delete-overlay',
+      {
+        overlay: JSON.parse(JSON.stringify(deletedOverlay)),
+        index: overlayIndex,
+      },
+      `删除浮层 ${overlayName}`
+    )
+
+    markAsUnsaved()
+
+    console.log('✅ [DesignerNew] Overlay deleted:', overlayId, overlayName)
+    console.log('🎭 [DesignerNew] Remaining overlays:', currentView.value.overlays.length)
+  } catch (error) {
+    console.error('❌ [DesignerNew] Failed to delete overlay:', error)
+    message.error('删除浮层失败')
+  }
+}
+
 // 控件操作
 function handleControlSelect(controlIdOrDef: string | any) {
   if (typeof controlIdOrDef === 'string') {
     selectControl(controlIdOrDef)
+
+    // 如果当前是浮层模式，检查选中的是否是浮层
+    if (currentCanvas.value === 'overlay' && currentView.value?.overlays) {
+      const selectedOverlay = currentView.value.overlays.find(o => o.id === controlIdOrDef)
+      if (selectedOverlay) {
+        currentOverlayId.value = controlIdOrDef
+        console.log('🎭 [DesignerNew] Selected overlay:', controlIdOrDef)
+      }
+    }
   }
 }
 
@@ -581,13 +895,66 @@ function handleControlMove(dragId: string, dropId: string, position: 'before' | 
   // 不能移动到自己
   if (dragId === dropId) return
 
-  // 获取拖拽的控件
-  const dragControl = findControlById(currentView.value.controls, dragId)
-  if (!dragControl) return
+  // 根据当前画布模式查找控件
+  let dragControl: any = null
+  let searchInOverlays = false
+
+  // 先在页面控件中查找
+  dragControl = findControlById(currentView.value.controls, dragId)
+
+  // 如果在页面中没找到，尝试在浮层中查找
+  if (!dragControl && currentView.value.overlays) {
+    for (const overlay of currentView.value.overlays) {
+      if (overlay.id === dragId) {
+        dragControl = overlay
+        searchInOverlays = true
+        break
+      }
+      if (overlay.children) {
+        dragControl = findControlById(overlay.children, dragId)
+        if (dragControl) {
+          searchInOverlays = true
+          break
+        }
+      }
+    }
+  }
+
+  if (!dragControl) {
+    console.warn('未找到拖拽的控件:', dragId)
+    return
+  }
 
   // 检查是否移动到自己的子节点（防止循环引用）
   if (isDescendant(dragControl, dropId)) {
     message.error('不能移动到自己的子节点')
+    return
+  }
+
+  // 检查是否跨画布拖拽（页面 <-> 浮层）
+  let dropInOverlays = false
+  let dropControl: any = findControlById(currentView.value.controls, dropId)
+
+  if (!dropControl && currentView.value.overlays) {
+    for (const overlay of currentView.value.overlays) {
+      if (overlay.id === dropId) {
+        dropControl = overlay
+        dropInOverlays = true
+        break
+      }
+      if (overlay.children) {
+        dropControl = findControlById(overlay.children, dropId)
+        if (dropControl) {
+          dropInOverlays = true
+          break
+        }
+      }
+    }
+  }
+
+  // 防止跨画布拖拽
+  if (searchInOverlays !== dropInOverlays) {
+    message.error('不能在页面和浮层之间拖拽组件')
     return
   }
 
@@ -713,11 +1080,32 @@ function handleCanvasDrop(event: DragEvent) {
       name: data.controlKind,
     })
 
-    addControl(newControl)
-    selectControl(newControl.id)
-    history.push('add-control', { control: newControl }, `添加控件 ${data.controlKind}`)
-    markAsUnsaved()
-    message.success('已添加组件')
+    // 根据当前画布模式决定添加到哪里
+    if (currentCanvas.value === 'page') {
+      // 添加到页面画布
+      addControl(newControl)
+      selectControl(newControl.id)
+      history.push('add-control', { control: newControl }, `添加控件到页面 ${data.controlKind}`)
+      markAsUnsaved()
+      message.success('已添加组件到页面')
+    } else if (currentCanvas.value === 'overlay') {
+      // 添加到浮层画布
+      console.log('🎭 [handleCanvasDrop] Overlay mode, currentOverlayId:', currentOverlayId.value)
+      console.log('🎭 [handleCanvasDrop] Available overlays:', currentView.value?.overlays)
+
+      if (currentOverlayId.value) {
+        // 添加到当前选中的浮层
+        console.log('✅ [handleCanvasDrop] Adding control to overlay:', currentOverlayId.value)
+        addControl(newControl, currentOverlayId.value)
+        selectControl(newControl.id)
+        history.push('add-control', { control: newControl, parentId: currentOverlayId.value }, `添加控件到浮层 ${data.controlKind}`)
+        markAsUnsaved()
+        message.success('已添加组件到浮层')
+      } else {
+        console.error('❌ [handleCanvasDrop] No overlay selected!')
+        message.warning('请先在大纲树中选择一个浮层')
+      }
+    }
   }
 }
 
@@ -1467,6 +1855,16 @@ function handleUnifySize(type: 'same-width' | 'same-height' | 'same-size') {
   message.success('已统一尺寸')
 }
 
+// 调试：监控 currentView 的变化
+watch(
+  () => currentView.value,
+  newView => {
+    console.log('[DesignerNew] currentView changed:', newView)
+    console.log('[DesignerNew] currentView.overlays:', newView?.overlays)
+  },
+  { immediate: true, deep: true }
+)
+
 // 监听设备类型变化,调整画布尺寸
 watch(previewDevice, newDevice => {
   switch (newDevice) {
@@ -1487,13 +1885,33 @@ watch(previewDevice, newDevice => {
 
 // 生命周期
 onMounted(async () => {
-  // 获取资源 URL 参数
+  // 获取资源 URL 和名称参数
   const resourceUrl = route.params.url as string
+  let resourceName = route.params.name as string
+
+  console.log('🎯 [DesignerNew] Route params:', { url: resourceUrl, name: resourceName })
+
+  // 解码资源名称（如果存在）
+  if (resourceName) {
+    try {
+      resourceName = decodeURIComponent(resourceName)
+      console.log('🔓 [DesignerNew] Decoded resource name:', resourceName)
+    } catch (error) {
+      console.warn('⚠️ [DesignerNew] Failed to decode resource name:', error)
+    }
+  }
 
   // 设置持久化服务的资源 URL
   if (resourceUrl) {
     persistenceService.setResourceUrl(resourceUrl)
-    designName.value = resourceUrl
+    // 优先使用资源名称，如果没有则使用 URL
+    if (resourceName) {
+      designName.value = resourceName
+      console.log('✅ [DesignerNew] Using resource name:', resourceName)
+    } else {
+      designName.value = resourceUrl
+      console.log('⚠️ [DesignerNew] No resource name, using URL:', resourceUrl)
+    }
   }
 
   // 检查是否是编辑模式

@@ -1,8 +1,220 @@
 /**
- * API层通用类型定义
+ * 统一 API 类型定义
+ *
+ * 本文件定义了所有 API 模块使用的统一类型和接口
+ * 符合需求 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
  */
 
 export * from './IApiClient'
+
+// ============================================================================
+// 统一的 API 响应类型 (Requirement 3.2)
+// ============================================================================
+
+/**
+ * 统一的 API 响应格式
+ *
+ * 所有 API 方法应该返回此格式的响应
+ *
+ * @template T - 响应数据类型
+ */
+export interface ApiResponse<T = any> {
+  /** 响应数据 */
+  data: T
+  /** 业务状态码 */
+  code: number
+  /** 响应消息 */
+  message: string
+  /** 请求是否成功 */
+  success: boolean
+  /** 时间戳 */
+  timestamp?: number
+  /** 请求追踪ID */
+  traceId?: string
+}
+
+/**
+ * 统一的列表响应格式
+ *
+ * 用于返回列表数据的 API
+ *
+ * @template T - 列表项类型
+ */
+export interface ApiListResponse<T = any> {
+  /** 数据列表 */
+  list: T[]
+  /** 总记录数 */
+  total: number
+  /** 当前页码（可选，用于分页） */
+  page?: number
+  /** 每页数量（可选，用于分页） */
+  pageSize?: number
+  /** 总页数（可选，用于分页） */
+  totalPages?: number
+  /** 是否有下一页（可选） */
+  hasNext?: boolean
+  /** 是否有上一页（可选） */
+  hasPrevious?: boolean
+}
+
+// ============================================================================
+// 统一的请求参数类型 (Requirement 3.3, 3.4, 3.5)
+// ============================================================================
+
+/**
+ * 统一的分页参数
+ *
+ * 用于需要分页的 API 请求
+ */
+export interface ApiPaginationParams {
+  /** 页码（从1开始） */
+  page?: number
+  /** 每页数量 */
+  pageSize?: number
+  /** 排序字段 */
+  sortBy?: string
+  /** 排序方向 */
+  sortOrder?: 'asc' | 'desc' | 'ascend' | 'descend'
+}
+
+/**
+ * 统一的查询参数
+ *
+ * 用于需要搜索和过滤的 API 请求
+ */
+export interface ApiQueryParams extends ApiPaginationParams {
+  /** 搜索关键词 */
+  keyword?: string
+  /** 过滤条件 */
+  filters?: Record<string, any>
+  /** 排序器配置 */
+  sorter?: {
+    field: string
+    order: 'ascend' | 'descend'
+  }
+  /** 时间范围 */
+  dateRange?: {
+    start?: string
+    end?: string
+  }
+}
+
+/**
+ * 统一的列表查询参数
+ *
+ * 结合分页和查询功能
+ */
+export interface ApiListParams extends ApiQueryParams {
+  /** 资源代码（用于特定资源的查询） */
+  resourceCode?: string
+  /** 是否包含已删除的记录 */
+  includeDeleted?: boolean
+}
+
+// ============================================================================
+// 通用 CRUD 参数类型 (Requirement 3.3)
+// ============================================================================
+
+/**
+ * 创建资源的参数类型
+ *
+ * @template T - 资源数据类型
+ */
+export interface ApiCreateParams<T = any> {
+  /** 资源数据 */
+  data: T
+  /** 资源代码（可选） */
+  resourceCode?: string
+}
+
+/**
+ * 更新资源的参数类型
+ *
+ * @template T - 资源数据类型
+ */
+export interface ApiUpdateParams<T = any> {
+  /** 资源ID */
+  id: string | number
+  /** 更新的数据（部分更新） */
+  data: Partial<T>
+}
+
+/**
+ * 删除资源的参数类型
+ */
+export interface ApiDeleteParams {
+  /** 资源ID */
+  id: string | number
+  /** 是否软删除 */
+  soft?: boolean
+}
+
+/**
+ * 批量操作参数类型
+ */
+export interface ApiBatchParams<T = any> {
+  /** 资源ID列表 */
+  ids: Array<string | number>
+  /** 操作数据（可选） */
+  data?: T
+}
+
+// ============================================================================
+// 特定业务类型 (Requirement 3.6)
+// ============================================================================
+
+/**
+ * 资源 DTO
+ */
+export interface ResourceDTO {
+  id: string | number
+  code: string
+  name: string
+  type?: string
+  description?: string
+  createdAt?: string
+  updatedAt?: string
+  [key: string]: any
+}
+
+/**
+ * 设计数据 DTO
+ */
+export interface DesignDTO {
+  resourceCode: string
+  rootView: any
+  version: string
+  createdAt: string
+  updatedAt: string
+  metadata?: {
+    author?: string
+    description?: string
+    tags?: string[]
+  }
+}
+
+// ============================================================================
+// 向后兼容的类型别名
+// ============================================================================
+
+/**
+ * @deprecated 使用 ApiListResponse 替代
+ */
+export type ListResponse<T> = ApiListResponse<T>
+
+/**
+ * @deprecated 使用 ApiPaginationParams 替代
+ */
+export type PaginationParams = ApiPaginationParams
+
+/**
+ * @deprecated 使用 ApiQueryParams 替代
+ */
+export type QueryParams = ApiQueryParams
+
+// ============================================================================
+// 原有类型定义（保持向后兼容）
+// ============================================================================
 
 /**
  * 进度事件

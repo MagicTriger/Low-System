@@ -24,6 +24,13 @@
       :class="controlClasses"
       :style="controlStyles"
       v-bind="controlProps"
+      :is-design-mode="true"
+      :selected-id="selectedId"
+      :hovered-id="hoveredId"
+      :zoom="zoom"
+      @select="$emit('select', $event)"
+      @hover="$emit('hover', $event)"
+      @drop="$emit('drop', $event)"
     >
       <!-- 子控件渲染在容器内部 -->
       <template v-if="isContainer && control.children && control.children.length > 0">
@@ -128,8 +135,8 @@ const controlName = computed(() => {
 
 // 是否为容器
 const isContainer = computed(() => {
-  // 只有类型为 container 的组件才是容器
-  return controlDef.value?.type === ControlType.Container
+  // 容器类型的组件或者明确标记为可以有子组件的组件
+  return controlDef.value?.type === ControlType.Container || controlDef.value?.canHaveChildren === true
 })
 
 // 选中和悬停状态
@@ -176,19 +183,68 @@ const controlStyles = computed(() => {
     styles.minHeight = '50px'
   }
 
+  // 确保样式值正确格式化
+  // 处理可能的数值类型，添加单位
+  Object.keys(styles).forEach(key => {
+    const value = styles[key]
+    if (typeof value === 'number' && needsPixelUnit(key)) {
+      styles[key] = `${value}px`
+    }
+  })
+
   // 不设置 pointer-events，让组件正常渲染和交互
   // 选择和拖拽由包装器处理
 
   return styles
 })
 
+// 判断CSS属性是否需要px单位
+function needsPixelUnit(property: string): boolean {
+  const pixelProperties = [
+    'width',
+    'height',
+    'minWidth',
+    'minHeight',
+    'maxWidth',
+    'maxHeight',
+    'top',
+    'right',
+    'bottom',
+    'left',
+    'margin',
+    'marginTop',
+    'marginRight',
+    'marginBottom',
+    'marginLeft',
+    'padding',
+    'paddingTop',
+    'paddingRight',
+    'paddingBottom',
+    'paddingLeft',
+    'borderWidth',
+    'borderRadius',
+    'fontSize',
+    'lineHeight',
+    'gap',
+    'columnGap',
+    'rowGap',
+  ]
+  return pixelProperties.includes(property)
+}
+
 // 控件属性
 const controlProps = computed(() => {
   const result: Record<string, any> = {}
 
-  // settings 是数组格式，需要转换
-  if (Array.isArray(controlDef.value?.settings)) {
-    controlDef.value.settings.forEach(setting => {
+  // 传递控件的props属性
+  if (props.control.props) {
+    Object.assign(result, props.control.props)
+  }
+
+  // settings 是数组格式，需要转换（如果存在）
+  const settings = (controlDef.value as any)?.settings
+  if (Array.isArray(settings)) {
+    settings.forEach((setting: any) => {
       if (props.control[setting.key] !== undefined) {
         result[setting.key] = props.control[setting.key]
       } else if (setting.defaultValue !== undefined) {

@@ -11,6 +11,7 @@ import NumberControl from './input/Number.vue'
 import BooleanControl from './input/Boolean.vue'
 import FlexControl from './container/Flex.vue'
 import GridControl from './container/Grid.vue'
+import ModalControl from './basic/Modal.vue'
 import TableControl from './collection/Table.vue'
 import TableHeader from './collection/TableHeader.vue'
 import TableRow from './collection/TableRow.vue'
@@ -35,6 +36,10 @@ import DashboardContainer from './dashboard/DashboardContainer.vue'
 // 自定义控件
 import CustomComponent from './custom/CustomComponent.vue'
 import UserManagementComponent from './custom/UserManagementComponent.vue'
+
+// 浮层控件
+// ⚠️ DEPRECATED: OverlayContainer is deprecated, use Modal instead
+import OverlayContainer from './container/OverlayContainer.vue'
 
 // 输入控件
 import TextInput from './input/TextInput.vue'
@@ -1302,6 +1307,391 @@ export function registerBasicControls() {
                 type: 'switch' as any,
                 defaultValue: true,
                 layout: { span: 12 },
+              },
+            ],
+          },
+        ],
+      },
+    },
+
+    // 浮层容器组件
+    // ⚠️ DEPRECATED: This component is deprecated. Use 'Modal' component instead.
+    // Kept for backward compatibility with existing designs.
+    {
+      kind: 'overlay-container',
+      kindName: '浮层容器 (已废弃)',
+      type: ControlType.Container,
+      icon: 'layer',
+      component: OverlayContainer,
+      dataBindable: false,
+      isOverlay: true,
+      events: {
+        open: {
+          name: '打开事件',
+          description: '浮层打开时触发',
+        },
+        close: {
+          name: '关闭事件',
+          description: '浮层关闭时触发',
+        },
+        ok: {
+          name: '确定',
+          description: '点击确定按钮时触发',
+        },
+        cancel: {
+          name: '取消',
+          description: '点击取消按钮或关闭浮层时触发',
+        },
+        afterClose: {
+          name: '关闭后',
+          description: '浮层完全关闭后触发',
+        },
+      },
+      panels: {
+        extends: ['basic', 'layout', 'style', 'event'],
+        custom: [
+          {
+            group: 'overlay' as any,
+            title: '浮层配置',
+            icon: 'LayerOutlined',
+            fields: [
+              {
+                key: 'overlayName',
+                label: '浮层名称',
+                type: 'text' as any,
+                defaultValue: '新浮层',
+                placeholder: '请输入浮层名称',
+                layout: { span: 24 },
+              },
+              {
+                key: 'overlayType',
+                label: '浮层类型',
+                type: 'select' as any,
+                defaultValue: 'modal',
+                options: [
+                  { label: '模态框', value: 'modal' },
+                  { label: '抽屉', value: 'drawer' },
+                  { label: '全屏', value: 'fullscreen' },
+                ],
+                layout: { span: 12 },
+              },
+              {
+                key: 'position',
+                label: '显示位置',
+                type: 'select' as any,
+                defaultValue: 'center',
+                options: [
+                  { label: '居中', value: 'center' },
+                  { label: '顶部', value: 'top' },
+                  { label: '右侧', value: 'right' },
+                  { label: '底部', value: 'bottom' },
+                  { label: '左侧', value: 'left' },
+                ],
+                layout: { span: 12 },
+              },
+              {
+                key: 'width',
+                label: '宽度',
+                type: 'number' as any,
+                defaultValue: 520,
+                layout: { span: 12 },
+              },
+              {
+                key: 'height',
+                label: '高度',
+                type: 'number' as any,
+                placeholder: 'auto',
+                layout: { span: 12 },
+              },
+              {
+                key: 'closable',
+                label: '显示关闭按钮',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 8 },
+              },
+              {
+                key: 'maskClosable',
+                label: '点击遮罩关闭',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 8 },
+              },
+              {
+                key: 'keyboard',
+                label: 'ESC关闭',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 8 },
+              },
+              {
+                key: 'destroyOnClose',
+                label: '关闭时销毁',
+                type: 'switch' as any,
+                defaultValue: false,
+                layout: { span: 8 },
+              },
+              {
+                key: 'mask',
+                label: '显示遮罩',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 8 },
+              },
+              {
+                key: 'centered',
+                label: '垂直居中',
+                type: 'switch' as any,
+                defaultValue: false,
+                layout: { span: 8 },
+              },
+            ],
+          },
+          {
+            group: 'container' as any,
+            title: '视图容器',
+            icon: 'ContainerOutlined',
+            fields: [
+              {
+                key: 'containerType',
+                label: '容器类型',
+                type: 'select' as any,
+                defaultValue: 'flex',
+                options: [
+                  { label: 'Flex布局', value: 'flex' },
+                  { label: 'Grid布局', value: 'grid' },
+                  { label: '自定义', value: 'custom' },
+                ],
+                layout: { span: 24 },
+              },
+              {
+                key: 'containerProps.direction',
+                label: 'Flex方向',
+                type: 'select' as any,
+                defaultValue: 'column',
+                options: [
+                  { label: '水平', value: 'row' },
+                  { label: '垂直', value: 'column' },
+                  { label: '水平反向', value: 'row-reverse' },
+                  { label: '垂直反向', value: 'column-reverse' },
+                ],
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'flex',
+              },
+              {
+                key: 'containerProps.justify',
+                label: '主轴对齐',
+                type: 'select' as any,
+                defaultValue: 'flex-start',
+                options: [
+                  { label: '起点', value: 'flex-start' },
+                  { label: '居中', value: 'center' },
+                  { label: '终点', value: 'flex-end' },
+                  { label: '两端对齐', value: 'space-between' },
+                  { label: '环绕对齐', value: 'space-around' },
+                  { label: '均匀分布', value: 'space-evenly' },
+                ],
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'flex',
+              },
+              {
+                key: 'containerProps.align',
+                label: '交叉轴对齐',
+                type: 'select' as any,
+                defaultValue: 'stretch',
+                options: [
+                  { label: '起点', value: 'flex-start' },
+                  { label: '居中', value: 'center' },
+                  { label: '终点', value: 'flex-end' },
+                  { label: '基线', value: 'baseline' },
+                  { label: '拉伸', value: 'stretch' },
+                ],
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'flex',
+              },
+              {
+                key: 'containerProps.gap',
+                label: '间距',
+                type: 'number' as any,
+                defaultValue: 16,
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'flex',
+              },
+              {
+                key: 'containerProps.columns',
+                label: '列数',
+                type: 'number' as any,
+                defaultValue: 2,
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'grid',
+              },
+              {
+                key: 'containerProps.rows',
+                label: '行数',
+                type: 'number' as any,
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'grid',
+              },
+              {
+                key: 'containerProps.columnGap',
+                label: '列间距',
+                type: 'number' as any,
+                defaultValue: 16,
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'grid',
+              },
+              {
+                key: 'containerProps.rowGap',
+                label: '行间距',
+                type: 'number' as any,
+                defaultValue: 16,
+                layout: { span: 12 },
+                visible: (props: any) => props.containerType === 'grid',
+              },
+            ],
+          },
+          {
+            group: 'target' as any,
+            title: '目标视图',
+            icon: 'EyeOutlined',
+            fields: [
+              {
+                key: 'targetView',
+                label: '目标视图',
+                type: 'select' as any,
+                placeholder: '选择要显示的视图',
+                options: [],
+                layout: { span: 24 },
+              },
+            ],
+          },
+        ],
+      },
+    },
+
+    // 弹窗组件
+    {
+      kind: 'Modal',
+      kindName: '模态框',
+      type: ControlType.Basic,
+      icon: 'modal',
+      component: ModalControl,
+      dataBindable: false,
+      canHaveChildren: true,
+      events: {
+        ok: {
+          name: '确定',
+          description: '点击确定按钮时触发',
+        },
+        cancel: {
+          name: '取消',
+          description: '点击取消按钮或关闭弹窗时触发',
+        },
+        afterClose: {
+          name: '关闭后',
+          description: '弹窗完全关闭后触发',
+        },
+      },
+      panels: {
+        extends: ['basic', 'layout', 'style', 'event'],
+        custom: [
+          {
+            group: 'component' as any,
+            title: '弹窗属性',
+            icon: 'SettingOutlined',
+            fields: [
+              {
+                key: 'title',
+                label: '标题',
+                type: 'text' as any,
+                defaultValue: '弹窗',
+                layout: { span: 24 },
+              },
+              {
+                key: 'width',
+                label: '宽度',
+                type: 'number' as any,
+                defaultValue: 520,
+                layout: { span: 12 },
+              },
+              {
+                key: 'centered',
+                label: '居中显示',
+                type: 'switch' as any,
+                defaultValue: false,
+                layout: { span: 12 },
+              },
+              {
+                key: 'closable',
+                label: '显示关闭按钮',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 12 },
+              },
+              {
+                key: 'maskClosable',
+                label: '点击遮罩关闭',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 12 },
+              },
+              {
+                key: 'showFooter',
+                label: '显示底部按钮',
+                type: 'switch' as any,
+                defaultValue: true,
+                layout: { span: 12 },
+              },
+              {
+                key: 'destroyOnClose',
+                label: '关闭时销毁',
+                type: 'switch' as any,
+                defaultValue: false,
+                layout: { span: 12 },
+              },
+              {
+                key: 'okText',
+                label: '确定按钮文字',
+                type: 'text' as any,
+                defaultValue: '确定',
+                layout: { span: 12 },
+              },
+              {
+                key: 'cancelText',
+                label: '取消按钮文字',
+                type: 'text' as any,
+                defaultValue: '取消',
+                layout: { span: 12 },
+              },
+              {
+                key: 'zIndex',
+                label: 'z-index',
+                type: 'number' as any,
+                defaultValue: 1000,
+                layout: { span: 12 },
+              },
+            ],
+          },
+          {
+            group: 'binding' as any,
+            title: '视图容器绑定',
+            icon: 'LinkOutlined',
+            fields: [
+              {
+                key: 'overlayId',
+                label: '浮层ID',
+                type: 'text' as any,
+                description: '绑定到浮层配置的ID',
+                placeholder: '输入浮层ID',
+                layout: { span: 24 },
+              },
+              {
+                key: 'parentControlId',
+                label: '父组件ID',
+                type: 'text' as any,
+                description: '绑定到页面中的父组件ID',
+                placeholder: '输入父组件ID',
+                layout: { span: 24 },
               },
             ],
           },

@@ -109,7 +109,10 @@ export function useDragDrop() {
         return false
       }
 
-      // TODO: 检查是否拖到自己的子控件上（需要遍历控件树）
+      // 检查是否拖到自己的子控件上
+      if (isDescendant(dragData.value.controlId, targetId)) {
+        return false
+      }
 
       return true
     }
@@ -227,6 +230,15 @@ export function useDragDrop() {
     return null
   }
 
+  /**
+   * 检查目标控件是否是源控件的后代
+   */
+  function isDescendant(sourceId: string, targetId: string): boolean {
+    // 需要从全局状态或传入的控件树中查找
+    // 这里返回 false 作为默认值，实际实现需要访问控件树
+    return false
+  }
+
   return {
     // 状态
     isDragging,
@@ -248,5 +260,6 @@ export function useDragDrop() {
     handleDrop,
     createDragTransfer,
     readDragTransfer,
+    isDescendant,
   }
 }

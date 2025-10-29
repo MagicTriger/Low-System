@@ -19,32 +19,24 @@
         </a-tooltip>
       </div>
     </div>
-    
+
     <!-- 大纲切换 -->
     <div class="outline-tabs">
-      <div
-        class="tab-item"
-        :class="{ active: activeTab === 'controls' }"
-        @click="activeTab = 'controls'"
-      >
+      <div class="tab-item" :class="{ active: activeTab === 'controls' }" @click="activeTab = 'controls'">
         <appstore-outlined />
         <span>控件大纲</span>
       </div>
-      <div
-        class="tab-item"
-        :class="{ active: activeTab === 'overlays' }"
-        @click="activeTab = 'overlays'"
-      >
+      <div class="tab-item" :class="{ active: activeTab === 'overlays' }" @click="activeTab = 'overlays'">
         <group-outlined />
         <span>浮层大纲</span>
       </div>
     </div>
-    
+
     <!-- 大纲树 -->
     <div class="outline-content">
       <template v-if="activeTab === 'controls'">
-        <OutlineTree 
-          :nodes="controlNodes" 
+        <OutlineTree
+          :nodes="controlNodes"
           :active-node-id="activeNodeId"
           @node-select="handleNodeSelect"
           @node-delete="handleNodeDelete"
@@ -53,17 +45,17 @@
           @node-move="handleNodeMove"
         />
       </template>
-      
+
       <template v-if="activeTab === 'overlays'">
-        <OutlineTree 
-          :nodes="overlayNodes" 
+        <OutlineTree
+          :nodes="overlayNodes"
           :active-node-id="activeNodeId"
           @node-select="handleNodeSelect"
           @node-delete="handleNodeDelete"
           @node-copy="handleNodeCopy"
         />
       </template>
-      
+
       <!-- 空状态 -->
       <div v-if="isEmpty" class="empty-state">
         <div class="empty-icon">📄</div>
@@ -76,13 +68,7 @@
 
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
-import {
-  UnorderedListOutlined,
-  PlusSquareOutlined,
-  MinusSquareOutlined,
-  AppstoreOutlined,
-  GroupOutlined
-} from '@ant-design/icons-vue'
+import { UnorderedListOutlined, PlusSquareOutlined, MinusSquareOutlined, AppstoreOutlined, GroupOutlined } from '@ant-design/icons-vue'
 import { RootViewContext } from '../../root-view-context'
 import OutlineTree from './tree.vue'
 import type { Control } from '../../base'
@@ -101,7 +87,7 @@ const activeTab = ref<'controls' | 'overlays'>('controls')
 const expandedKeys = ref<string[]>([])
 
 // 计算属性
-const view = computed(() => ctx?.viewIdMap.value[props.viewId])
+const view = computed(() => ctx?.viewIdMap[props.viewId])
 const isRootView = computed(() => view.value?.id === ctx?.rootView.value?.id)
 
 const activeNodeId = computed(() => {
@@ -133,7 +119,7 @@ const buildOutlineNodes = (controls: Control[]): OutlineNode[] => {
     kind: control.kind,
     control,
     children: control.children ? buildOutlineNodes(control.children) : [],
-    expanded: expandedKeys.value.includes(control.id)
+    expanded: expandedKeys.value.includes(control.id),
   }))
 }
 
@@ -170,7 +156,7 @@ const expandAll = () => {
     })
     return ids
   }
-  
+
   expandedKeys.value = getAllNodeIds(controlNodes.value.concat(overlayNodes.value))
 }
 
@@ -285,7 +271,7 @@ interface OutlineNode {
   .outline-tabs {
     flex-direction: column;
   }
-  
+
   .tab-item {
     justify-content: flex-start;
     padding: 6px 12px;

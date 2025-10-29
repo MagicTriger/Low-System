@@ -3,6 +3,16 @@ import type { Control, RootView, DataBinding, DataFlow, DataAction, DataSourceOp
 import { DataBindingManager, DataFlowManager, DataActionManager } from '@/core/renderer/designer/managers'
 
 /**
+ * 画布状态接口
+ */
+export interface CanvasState {
+  controls: Control[]
+  selectedControlId: string | null
+  hoveredControlId: string | null
+  clipboard: Control | null
+}
+
+/**
  * 设计器状态接口
  */
 export interface DesignerState {
@@ -10,6 +20,11 @@ export interface DesignerState {
   currentView: Ref<RootView | null>
   selectedControlId: Ref<string | null>
   selectedControlIds: Ref<string[]>
+
+  // 画布切换状态
+  activeCanvas: Ref<'page' | 'overlay'>
+  activeOverlayId: Ref<string | null>
+  overlayCanvasMap: Ref<Map<string, CanvasState>>
 
   // 画布状态
   zoom: Ref<number>
@@ -38,6 +53,11 @@ export function useDesignerState() {
   const currentView = ref<RootView | null>(null)
   const selectedControlId = ref<string | null>(null)
   const selectedControlIds = ref<string[]>([])
+
+  // 画布切换状态
+  const activeCanvas = ref<'page' | 'overlay'>('page')
+  const activeOverlayId = ref<string | null>(null)
+  const overlayCanvasMap = ref<Map<string, CanvasState>>(new Map())
 
   // 画布状态
   const zoom = ref(1)
@@ -82,6 +102,47 @@ export function useDesignerState() {
     transformOrigin: 'top left',
   }))
 
+  // 画布切换相关计算属性
+  const currentCanvasControls = computed(() => {
+    if (activeCanvas.value === 'page') {
+      return currentView.value?.controls || []
+    } else if (activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      return overlayCanvas?.controls || []
+    }
+    return []
+  })
+
+  const currentCanvasSelectedControlId = computed(() => {
+    if (activeCanvas.value === 'page') {
+      return selectedControlId.value
+    } else if (activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      return overlayCanvas?.selectedControlId || null
+    }
+    return null
+  })
+
+  const currentCanvasHoveredControlId = computed(() => {
+    if (activeCanvas.value === 'page') {
+      return hoveredControlId.value
+    } else if (activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      return overlayCanvas?.hoveredControlId || null
+    }
+    return null
+  })
+
+  const currentCanvasClipboard = computed(() => {
+    if (activeCanvas.value === 'page') {
+      return pageCanvasState.value.clipboard
+    } else if (activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      return overlayCanvas?.clipboard || null
+    }
+    return null
+  })
+
   // 辅助函数
   function findControlById(controls: Control[], id: string): Control | null {
     for (const control of controls) {
@@ -96,37 +157,74 @@ export function useDesignerState() {
 
   // 选择操作
   function selectControl(id: string | null) {
-    console.log('[useDesignerState] selectControl called with id:', id)
-    selectedControlId.value = id
-    if (id) {
-      selectedControlIds.value = [id]
-    } else {
-      selectedControlIds.value = []
+    // 根据当前画布类型更新选中状态
+    if (activeCanvas.value === 'page') {
+      // 页面画布：直接更新 selectedControlId
+      selectedControlId.value = id
+      if (id) {
+        selectedControlIds.value = [id]
+      } else {
+        selectedControlIds.value = []
+      }
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      // 浮层画布：更新浮层画布的选中状态
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (overlayCanvas) {
+        overlayCanvas.selectedControlId = id
+        // 同时更新全局的 selectedControlId 以保持兼容性
+        selectedControlId.value = id
+        if (id) {
+          selectedControlIds.value = [id]
+        } else {
+          selectedControlIds.value = []
+        }
+      }
     }
 
     // 同步更新designer状态模块
     try {
       const stateManager = (window as any).__MIGRATION_SYSTEM__?.stateManagement?.stateManager
-      console.log('[useDesignerState] StateManager:', !!stateManager)
 
       if (stateManager) {
         const designerModule = stateManager.modules?.designer
-        console.log('[useDesignerState] Designer Module:', !!designerModule)
-        console.log('[useDesignerState] Current View:', !!currentView.value)
 
         if (designerModule && currentView.value) {
           // 查找选中的控件
-          const control = id ? findControlById(currentView.value.controls, id) : null
-          console.log('[useDesignerState] Found control:', control)
+          const controls =
+            activeCanvas.value === 'page' ? currentView.value.controls : overlayCanvasMap.value.get(activeOverlayId.value!)?.controls || []
+          const control = id ? findControlById(controls, id) : null
           designerModule.commit('setSelectedControl', control)
-          console.log('[useDesignerState] ✅ Control synced to state module')
         } else {
-          console.warn('[useDesignerState] ❌ Cannot sync: missing module or view')
+          console.warn('[useDesignerState] Cannot sync: missing module or view')
         }
       }
     } catch (error) {
-      console.error('[useDesignerState] ❌ Failed to sync with designer module:', error)
+      console.error('[useDesignerState] Failed to sync with designer module:', error)
     }
+  }
+
+  // 悬停操作
+  function hoverControl(id: string | null) {
+    console.log('[useDesignerState] hoverControl called with id:', id, 'canvas:', activeCanvas.value)
+
+    // 根据当前画布类型更新悬停状态
+    if (activeCanvas.value === 'page') {
+      // 页面画布：更新页面画布的悬停状态
+      hoveredControlId.value = id
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      // 浮层画布：更新浮层画布的悬停状态
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (overlayCanvas) {
+        overlayCanvas.hoveredControlId = id
+        // 同时更新全局的 hoveredControlId 以保持兼容性
+        hoveredControlId.value = id
+        console.log('[useDesignerState] Updated overlay canvas hover:', activeOverlayId.value, id)
+      }
+    }
+  }
+
+  function clearHover() {
+    hoverControl(null)
   }
 
   function toggleControlSelection(id: string) {
@@ -172,6 +270,118 @@ export function useDesignerState() {
     showGuides.value = !showGuides.value
   }
 
+  // 页面画布状态(用于保存页面画布的独立状态)
+  const pageCanvasState = ref<{
+    selectedControlId: string | null
+    hoveredControlId: string | null
+    clipboard: Control | null
+  }>({
+    selectedControlId: null,
+    hoveredControlId: null,
+    clipboard: null,
+  })
+
+  // 悬停状态
+  const hoveredControlId = ref<string | null>(null)
+
+  // 画布切换操作
+  function switchCanvas(canvasType: 'page' | 'overlay', overlayId?: string) {
+    console.log('[useDesignerState] switchCanvas:', canvasType, overlayId)
+
+    // 保存当前画布的状态
+    if (activeCanvas.value === 'page') {
+      // 保存页面画布状态
+      pageCanvasState.value.selectedControlId = selectedControlId.value
+      pageCanvasState.value.hoveredControlId = hoveredControlId.value
+      pageCanvasState.value.clipboard = clipboard.value
+      console.log('[useDesignerState] Saved page canvas state:', pageCanvasState.value)
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      // 保存浮层画布状态
+      const currentOverlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (currentOverlayCanvas) {
+        currentOverlayCanvas.selectedControlId = selectedControlId.value
+        currentOverlayCanvas.hoveredControlId = hoveredControlId.value
+        currentOverlayCanvas.clipboard = clipboard.value
+        console.log('[useDesignerState] Saved overlay canvas state:', activeOverlayId.value, currentOverlayCanvas)
+      }
+    }
+
+    // 切换画布类型
+    activeCanvas.value = canvasType
+
+    if (canvasType === 'overlay') {
+      if (!overlayId) {
+        console.warn('[useDesignerState] switchCanvas to overlay requires overlayId')
+        return
+      }
+
+      activeOverlayId.value = overlayId
+
+      // 如果浮层画布不存在,创建新的画布状态
+      if (!overlayCanvasMap.value.has(overlayId)) {
+        console.log('[useDesignerState] Creating new overlay canvas state for:', overlayId)
+        overlayCanvasMap.value.set(overlayId, {
+          controls: [],
+          selectedControlId: null,
+          hoveredControlId: null,
+          clipboard: null,
+        })
+      }
+
+      // 恢复浮层画布的状态
+      const overlayCanvas = overlayCanvasMap.value.get(overlayId)
+      if (overlayCanvas) {
+        selectedControlId.value = overlayCanvas.selectedControlId
+        hoveredControlId.value = overlayCanvas.hoveredControlId
+        clipboard.value = overlayCanvas.clipboard
+        console.log('[useDesignerState] Restored overlay canvas state:', overlayCanvas)
+      }
+    } else {
+      // 切换到页面画布,恢复页面画布状态
+      activeOverlayId.value = null
+      selectedControlId.value = pageCanvasState.value.selectedControlId
+      hoveredControlId.value = pageCanvasState.value.hoveredControlId
+      clipboard.value = pageCanvasState.value.clipboard
+      console.log('[useDesignerState] Switched to page canvas, restored state:', pageCanvasState.value)
+    }
+  }
+
+  function getOverlayCanvas(overlayId: string): CanvasState | undefined {
+    return overlayCanvasMap.value.get(overlayId)
+  }
+
+  function createOverlayCanvas(overlayId: string, initialControls: Control[] = []): CanvasState {
+    const canvasState: CanvasState = {
+      controls: initialControls,
+      selectedControlId: null,
+      hoveredControlId: null,
+      clipboard: null,
+    }
+    overlayCanvasMap.value.set(overlayId, canvasState)
+    console.log('[useDesignerState] Created overlay canvas:', overlayId, canvasState)
+    return canvasState
+  }
+
+  function removeOverlayCanvas(overlayId: string) {
+    const deleted = overlayCanvasMap.value.delete(overlayId)
+    console.log('[useDesignerState] Removed overlay canvas:', overlayId, deleted)
+
+    // 如果删除的是当前活动的浮层,切换回页面画布
+    if (activeOverlayId.value === overlayId) {
+      switchCanvas('page')
+    }
+  }
+
+  function updateOverlayCanvasControls(overlayId: string, controls: Control[]) {
+    const overlayCanvas = overlayCanvasMap.value.get(overlayId)
+    if (overlayCanvas) {
+      overlayCanvas.controls = controls
+      console.log('[useDesignerState] Updated overlay canvas controls:', overlayId, controls.length)
+    } else {
+      console.warn('[useDesignerState] Overlay canvas not found:', overlayId)
+    }
+  }
+
   // 视图操作
   function setView(view: RootView) {
     currentView.value = view
@@ -181,10 +391,26 @@ export function useDesignerState() {
   function updateControl(controlId: string, updates: Partial<Control>) {
     if (!currentView.value) return
 
-    console.log('🔄 [updateControl] Updating control:', controlId, updates)
+    console.log('🔄 [updateControl] Updating control:', controlId, 'canvas:', activeCanvas.value, updates)
 
-    // 深拷贝整个视图,确保所有引用都是新的
-    const newView = JSON.parse(JSON.stringify(currentView.value))
+    // 获取当前画布的控件列表
+    let targetControls: Control[]
+    if (activeCanvas.value === 'page') {
+      targetControls = currentView.value.controls
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (!overlayCanvas) {
+        console.warn('[updateControl] Overlay canvas not found:', activeOverlayId.value)
+        return
+      }
+      targetControls = overlayCanvas.controls
+    } else {
+      console.warn('[updateControl] Invalid canvas state')
+      return
+    }
+
+    // 深拷贝控件列表,确保所有引用都是新的
+    const newControls = JSON.parse(JSON.stringify(targetControls))
 
     // 递归查找并更新控件
     function findAndUpdate(controls: Control[]): boolean {
@@ -221,16 +447,26 @@ export function useDesignerState() {
     }
 
     // 执行更新
-    const found = findAndUpdate(newView.controls)
+    const found = findAndUpdate(newControls)
 
     if (found) {
-      // 完全替换currentView,触发响应式更新
-      currentView.value = newView
-      console.log('✅ [updateControl] View updated, triggering re-render')
+      // 更新对应画布的控件列表
+      if (activeCanvas.value === 'page') {
+        // 完全替换currentView,触发响应式更新
+        currentView.value = { ...currentView.value, controls: newControls }
+        console.log('✅ [updateControl] Page canvas updated, triggering re-render')
+      } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+        // 更新浮层画布
+        const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+        if (overlayCanvas) {
+          overlayCanvas.controls = newControls
+          console.log('✅ [updateControl] Overlay canvas updated, triggering re-render')
+        }
+      }
 
       // 如果更新的是容器的布局方向,重新调整其中的表格尺寸
       if (updates.layout?.flexDirection) {
-        const updatedControl = findControlById(newView.controls, controlId)
+        const updatedControl = findControlById(newControls, controlId)
         if (updatedControl?.kind === 'Container' || updatedControl?.kind === 'Flex' || updatedControl?.kind === 'Grid') {
           autoResizeTablesInContainer(updatedControl)
         }
@@ -240,7 +476,7 @@ export function useDesignerState() {
       nextTick(() => {
         window.dispatchEvent(
           new CustomEvent('designer:control-updated', {
-            detail: { controlId, updates },
+            detail: { controlId, updates, canvas: activeCanvas.value },
           })
         )
       })
@@ -293,8 +529,46 @@ export function useDesignerState() {
   function addControl(control: Control, parentId?: string, index?: number) {
     if (!currentView.value) return
 
+    console.log('[useDesignerState] addControl:', control.id, 'canvas:', activeCanvas.value, 'parentId:', parentId)
+
+    // 在浮层模式下，如果没有指定parentId，默认添加到当前浮层
+    if (activeCanvas.value === 'overlay' && activeOverlayId.value && !parentId) {
+      parentId = activeOverlayId.value
+      console.log('[useDesignerState] Auto-set parentId to current overlay:', parentId)
+    }
+
+    // 获取当前画布的控件列表
+    let targetControls: Control[]
+    if (activeCanvas.value === 'page') {
+      targetControls = currentView.value.controls
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      // 在浮层模式下，需要在页面控件和浮层列表中查找
+      targetControls = currentView.value.controls
+      // 同时也需要在overlays数组中查找
+      if (currentView.value.overlays) {
+        targetControls = [...targetControls, ...currentView.value.overlays]
+      }
+    } else {
+      console.warn('[useDesignerState] Invalid canvas state')
+      return
+    }
+
     if (parentId) {
-      const parent = findControlById(currentView.value.controls, parentId)
+      // 先在页面控件中查找父控件
+      let parent = findControlById(currentView.value.controls, parentId)
+
+      // 如果在页面控件中没找到，尝试在浮层列表中查找
+      if (!parent && currentView.value.overlays) {
+        parent = currentView.value.overlays.find(o => o.id === parentId)
+        if (!parent) {
+          // 在浮层的子控件中查找
+          for (const overlay of currentView.value.overlays) {
+            parent = findControlById(overlay.children || [], parentId)
+            if (parent) break
+          }
+        }
+      }
+
       if (parent) {
         if (!parent.children) parent.children = []
         if (index !== undefined) {
@@ -302,26 +576,33 @@ export function useDesignerState() {
         } else {
           parent.children.push(control)
         }
+        console.log('[useDesignerState] Control added to parent:', parentId, 'children count:', parent.children.length)
+
         // 如果添加的是表格组件到容器中,自动调整所有表格的尺寸
         if (control.kind === 'Table' && (parent.kind === 'Container' || parent.kind === 'Flex' || parent.kind === 'Grid')) {
           autoResizeTablesInContainer(parent)
         }
-        // 触发视图更新
-        currentView.value = { ...currentView.value }
+      } else {
+        console.warn('[useDesignerState] Parent control not found:', parentId)
       }
     } else {
       if (index !== undefined) {
-        currentView.value.controls.splice(index, 0, control)
+        targetControls.splice(index, 0, control)
       } else {
-        currentView.value.controls.push(control)
+        targetControls.push(control)
       }
-      // 触发视图更新
-      currentView.value = { ...currentView.value }
     }
+
+    // 触发视图更新
+    currentView.value = { ...currentView.value }
+
+    console.log('[useDesignerState] Control added to', activeCanvas.value, 'canvas')
   }
 
   function removeControl(controlId: string) {
     if (!currentView.value) return
+
+    console.log('[useDesignerState] removeControl:', controlId, 'canvas:', activeCanvas.value)
 
     // 找到要删除的控件和其父容器
     let parentContainer: Control | null = null
@@ -341,7 +622,33 @@ export function useDesignerState() {
       return false
     }
 
+    // 在页面控件中查找
     findControlAndParent(currentView.value.controls)
+
+    // 如果在页面控件中没找到，尝试在浮层列表中查找
+    if (!removedControl && currentView.value.overlays) {
+      // 检查是否是浮层本身
+      const overlayIndex = currentView.value.overlays.findIndex(o => o.id === controlId)
+      if (overlayIndex > -1) {
+        removedControl = currentView.value.overlays[overlayIndex]
+        currentView.value.overlays.splice(overlayIndex, 1)
+        console.log('[useDesignerState] Overlay removed from overlays array')
+
+        // 清理浮层画布状态
+        removeOverlayCanvas(controlId)
+
+        // 触发视图更新
+        currentView.value = { ...currentView.value }
+        return
+      }
+
+      // 在浮层的子控件中查找
+      for (const overlay of currentView.value.overlays) {
+        if (findControlAndParent(overlay.children || [], overlay)) {
+          break
+        }
+      }
+    }
 
     function removeFromArray(controls: Control[]): boolean {
       const index = controls.findIndex(c => c.id === controlId)
@@ -359,7 +666,24 @@ export function useDesignerState() {
       return false
     }
 
-    removeFromArray(currentView.value.controls)
+    // 从页面控件中删除
+    let removed = removeFromArray(currentView.value.controls)
+
+    // 如果在页面控件中没删除成功，尝试从浮层中删除
+    if (!removed && currentView.value.overlays) {
+      for (const overlay of currentView.value.overlays) {
+        if (removeFromArray(overlay.children || [])) {
+          removed = true
+          break
+        }
+      }
+    }
+
+    if (removed) {
+      console.log('[useDesignerState] Control removed:', controlId)
+    } else {
+      console.warn('[useDesignerState] Control not found:', controlId)
+    }
 
     // 如果删除的是表格组件,并且父容器是Container/Flex/Grid,重新调整剩余表格的尺寸
     if (
@@ -370,22 +694,70 @@ export function useDesignerState() {
     }
 
     // 触发视图更新
-    currentView.value = { ...currentView.value }
-
-    if (selectedControlId.value === controlId) {
-      clearSelection()
+    if (activeCanvas.value === 'page') {
+      currentView.value = { ...currentView.value }
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      // 触发浮层画布更新
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (overlayCanvas) {
+        overlayCanvas.controls = [...overlayCanvas.controls]
+      }
     }
+
+    // 清除选中状态
+    if (activeCanvas.value === 'page') {
+      if (selectedControlId.value === controlId) {
+        clearSelection()
+      }
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (overlayCanvas && overlayCanvas.selectedControlId === controlId) {
+        overlayCanvas.selectedControlId = null
+        selectedControlId.value = null
+        selectedControlIds.value = []
+      }
+    }
+
+    console.log('[useDesignerState] Control removed from', activeCanvas.value, 'canvas')
   }
 
   // 剪贴板操作
   function copyToClipboard(control: Control) {
-    clipboard.value = JSON.parse(JSON.stringify(control))
+    const clonedControl = JSON.parse(JSON.stringify(control))
+    clipboard.value = clonedControl
+
+    // 同时更新当前画布的剪贴板状态
+    if (activeCanvas.value === 'page') {
+      pageCanvasState.value.clipboard = clonedControl
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (overlayCanvas) {
+        overlayCanvas.clipboard = clonedControl
+      }
+    }
+
+    console.log('[useDesignerState] Copied to clipboard:', control.id, 'canvas:', activeCanvas.value)
   }
 
   function pasteFromClipboard(parentId?: string, index?: number) {
-    if (!clipboard.value) return null
+    // 获取当前画布的剪贴板内容
+    let clipboardContent: Control | null = null
 
-    const cloned = JSON.parse(JSON.stringify(clipboard.value))
+    if (activeCanvas.value === 'page') {
+      clipboardContent = pageCanvasState.value.clipboard || clipboard.value
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      clipboardContent = overlayCanvas?.clipboard || clipboard.value
+    } else {
+      clipboardContent = clipboard.value
+    }
+
+    if (!clipboardContent) {
+      console.warn('[useDesignerState] No content in clipboard')
+      return null
+    }
+
+    const cloned = JSON.parse(JSON.stringify(clipboardContent))
     // 重新生成 ID
     const regenerateIds = (ctrl: Control) => {
       ctrl.id = `${ctrl.kind}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -396,7 +768,24 @@ export function useDesignerState() {
     regenerateIds(cloned)
 
     addControl(cloned, parentId, index)
+    console.log('[useDesignerState] Pasted from clipboard:', cloned.id, 'canvas:', activeCanvas.value)
     return cloned
+  }
+
+  function clearClipboard() {
+    clipboard.value = null
+
+    // 同时清除当前画布的剪贴板
+    if (activeCanvas.value === 'page') {
+      pageCanvasState.value.clipboard = null
+    } else if (activeCanvas.value === 'overlay' && activeOverlayId.value) {
+      const overlayCanvas = overlayCanvasMap.value.get(activeOverlayId.value)
+      if (overlayCanvas) {
+        overlayCanvas.clipboard = null
+      }
+    }
+
+    console.log('[useDesignerState] Clipboard cleared, canvas:', activeCanvas.value)
   }
 
   // 数据源操作
@@ -526,6 +915,10 @@ export function useDesignerState() {
     currentView,
     selectedControlId,
     selectedControlIds,
+    hoveredControlId,
+    activeCanvas,
+    activeOverlayId,
+    overlayCanvasMap,
     zoom,
     canvasWidth,
     canvasHeight,
@@ -541,23 +934,35 @@ export function useDesignerState() {
     selectedControl,
     hasSelection,
     canvasStyle,
+    currentCanvasControls,
+    currentCanvasSelectedControlId,
+    currentCanvasHoveredControlId,
+    currentCanvasClipboard,
 
     // 方法
     selectControl,
     toggleControlSelection,
     clearSelection,
+    hoverControl,
+    clearHover,
     setZoom,
     zoomIn,
     zoomOut,
     resetZoom,
     toggleGrid,
     toggleGuides,
+    switchCanvas,
+    getOverlayCanvas,
+    createOverlayCanvas,
+    removeOverlayCanvas,
+    updateOverlayCanvasControls,
     setView,
     updateControl,
     addControl,
     removeControl,
     copyToClipboard,
     pasteFromClipboard,
+    clearClipboard,
     findControlById,
     autoResizeTablesInContainer,
 

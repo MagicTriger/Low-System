@@ -3,7 +3,7 @@
  * 提供静态数据的数据源
  */
 
-import type { IDataSource, DataSourceConfig } from '../../interfaces'
+import type { IDataSource, DataSourceConfig, DataSourceState, DataSourceMetadata, LoadOptions, DataSourceEvents } from '../../interfaces'
 import { BaseDataSourcePlugin } from '../BaseDataSourcePlugin'
 import type { DataSourcePluginMetadata } from '../IDataSourcePlugin'
 
@@ -16,23 +16,27 @@ export interface StaticDataSourceConfig extends DataSourceConfig {
 class StaticDataSource<T = any> implements IDataSource<T> {
   private _data: T | null
   private _error: Error | null = null
+  private eventHandlers: Map<keyof DataSourceEvents, Set<Function>> = new Map()
 
   constructor(public readonly config: StaticDataSourceConfig) {
     this._data = config.data
   }
 
-  get metadata() {
+  get metadata(): DataSourceMetadata {
     return {
-      type: 'static',
-      version: '1.0.0',
-      capabilities: ['load'],
+      id: this.config.id,
+      name: this.config.name,
+      type: this.config.type,
+      state: this.state,
+      hasCached: true,
+      recordCount: this._data ? (Array.isArray(this._data) ? this._data.length : 1) : 0,
     }
   }
 
-  get state() {
-    if (this._error) return 'error' as const
-    if (this._data !== null) return 'loaded' as const
-    return 'idle' as const
+  get state(): DataSourceState {
+    if (this._error) return 'error' as DataSourceState
+    if (this._data !== null) return 'loaded' as DataSourceState
+    return 'idle' as DataSourceState
   }
 
   get data(): T | null {
@@ -51,18 +55,26 @@ class StaticDataSource<T = any> implements IDataSource<T> {
     return this._error
   }
 
-  async load(options?: any): Promise<T> {
+  async load(options?: LoadOptions): Promise<T> {
+    this.emit('before-load', options)
+
     if (this._data === null) {
-      throw new Error('No data available')
+      const error = new Error('No data available')
+      this._error = error
+      this.emit('error', error)
+      throw error
     }
+
+    this.emit('after-load', this._data)
     return this._data
   }
 
-  async refresh(options?: any): Promise<T> {
+  async refresh(options?: LoadOptions): Promise<T> {
+    this.emit('refresh')
     return this.load(options)
   }
 
-  async reload(options?: any): Promise<T> {
+  async reload(options?: LoadOptions): Promise<T> {
     return this.load(options)
   }
 
@@ -72,21 +84,46 @@ class StaticDataSource<T = any> implements IDataSource<T> {
   }
 
   setData(data: T): void {
+    const prevData = this._data
     this._data = data
+    this.emit('data-change', data, prevData)
   }
 
   getData(): T | null {
     return this._data
   }
 
-  on(event: string, handler: any): () => void {
-    return () => {}
+  on<K extends keyof DataSourceEvents>(event: K, handler: DataSourceEvents[K]): () => void {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, new Set())
+    }
+    this.eventHandlers.get(event)!.add(handler as Function)
+    return () => this.off(event, handler)
   }
 
-  off(event: string, handler: any): void {}
+  off<K extends keyof DataSourceEvents>(event: K, handler: DataSourceEvents[K]): void {
+    const handlers = this.eventHandlers.get(event)
+    if (handlers) {
+      handlers.delete(handler as Function)
+    }
+  }
+
+  private emit<K extends keyof DataSourceEvents>(event: K, ...args: any[]): void {
+    const handlers = this.eventHandlers.get(event)
+    if (handlers) {
+      handlers.forEach(handler => {
+        try {
+          handler(...args)
+        } catch (error) {
+          console.error(`Error in event handler for ${event}:`, error)
+        }
+      })
+    }
+  }
 
   dispose(): void {
     this.clear()
+    this.eventHandlers.clear()
   }
 }
 

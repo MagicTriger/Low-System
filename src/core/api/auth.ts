@@ -6,6 +6,7 @@
 
 import type { IApiClient, ApiResponse } from './IApiClient'
 import { ApiClient } from './ApiClient'
+import type { StandardApiResponse, MenuTreeNode } from './shared-types'
 
 /**
  * 用户基本信息
@@ -31,25 +32,6 @@ export interface PermissionInfo {
 }
 
 /**
- * 菜单树节点
- */
-export interface MenuTreeNode {
-  id: number
-  menuCode: string
-  name: string
-  module: string
-  nodeType: number
-  sortOrder: number
-  createdAt: string
-  parentId: number | null
-  url?: string
-  icon?: string
-  path?: string
-  meta?: string
-  children?: MenuTreeNode[]
-}
-
-/**
  * 登录状态信息
  */
 export interface LoginStatusInfo {
@@ -69,16 +51,6 @@ export interface LoginResponseData {
   userInfo: UserInfo
   permissionInfo: PermissionInfo
   loginStatusInfo: LoginStatusInfo
-}
-
-/**
- * 标准 API 响应格式
- */
-export interface StandardApiResponse<T = any> {
-  success: boolean
-  code: number
-  message: string
-  data: T
 }
 
 /**

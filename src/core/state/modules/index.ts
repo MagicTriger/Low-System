@@ -11,6 +11,8 @@ import { themeModule } from './theme'
 import { userModule } from './user'
 import { designerModule } from './designer'
 import { resourceModule } from './resource'
+import { overlayModule } from './overlay'
+import modalModule from './modal'
 
 /**
  * 获取全局StateManager实例
@@ -99,6 +101,18 @@ export function registerStateModules(stateManager?: StateManager): void {
     /* 模块未注册 */
   }
 
+  try {
+    if (sm.getState('overlay')) registeredModules.add('overlay')
+  } catch (e) {
+    /* 模块未注册 */
+  }
+
+  try {
+    if (sm.getState('modal')) registeredModules.add('modal')
+  } catch (e) {
+    /* 模块未注册 */
+  }
+
   // 只注册未注册的模块
   if (!registeredModules.has('app')) {
     sm.registerModule(appModule)
@@ -122,6 +136,14 @@ export function registerStateModules(stateManager?: StateManager): void {
 
   if (!registeredModules.has('resource')) {
     sm.registerModule(resourceModule)
+  }
+
+  if (!registeredModules.has('overlay')) {
+    sm.registerModule(overlayModule)
+  }
+
+  if (!registeredModules.has('modal')) {
+    sm.registerModule(modalModule)
   }
 
   console.log('✅ All state modules registered successfully')
@@ -205,6 +227,8 @@ export * from './theme'
 export * from './user'
 export * from './designer'
 export * from './resource'
+export * from './overlay'
+export { default as modalModule } from './modal'
 
 // 导出辅助函数
 export * from '../helpers'

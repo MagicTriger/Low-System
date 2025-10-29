@@ -92,23 +92,23 @@ export class ApiManager {
       baseURL: '',
       timeout: 10000,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       interceptors: {
         request: [],
-        response: []
+        response: [],
       },
       retryConfig: {
         maxRetries: 3,
         retryDelay: 1000,
-        retryCondition: (error) => error.status >= 500
+        retryCondition: error => error.status >= 500,
       },
       cache: {
         enabled: true,
         maxAge: 300000, // 5分钟
-        maxSize: 100
+        maxSize: 100,
       },
-      ...config
+      ...config,
     }
   }
 
@@ -169,13 +169,16 @@ export class ApiManager {
   }
 
   // API 调用
-  async request(endpointId: string, options: {
-    params?: Record<string, any>
-    body?: any
-    headers?: Record<string, string>
-    timeout?: number
-    cache?: boolean
-  } = {}): Promise<any> {
+  async request(
+    endpointId: string,
+    options: {
+      params?: Record<string, any>
+      body?: any
+      headers?: Record<string, string>
+      timeout?: number
+      cache?: boolean
+    } = {}
+  ): Promise<any> {
     const endpoint = this.endpoints.get(endpointId)
     if (!endpoint) {
       throw new Error(`Endpoint '${endpointId}' not found`)
@@ -194,7 +197,7 @@ export class ApiManager {
       headers: { ...endpoint.headers, ...options.headers },
       body: options.body || endpoint.body,
       timestamp: startTime,
-      status: 'pending'
+      status: 'pending',
     }
 
     this.requests.set(requestId, apiRequest)
@@ -217,7 +220,7 @@ export class ApiManager {
         url: apiRequest.url,
         headers: { ...this.config.headers, ...apiRequest.headers },
         body: apiRequest.body,
-        timeout: options.timeout || endpoint.timeout || this.config.timeout
+        timeout: options.timeout || endpoint.timeout || this.config.timeout,
       })
 
       // 请求验证
@@ -257,7 +260,6 @@ export class ApiManager {
       }
 
       return processedResponse
-
     } catch (error) {
       // 更新请求状态
       apiRequest.status = 'error'
@@ -281,7 +283,7 @@ export class ApiManager {
     const controller = this.abortControllers.get(requestId)
     if (controller) {
       controller.abort()
-      
+
       const request = this.requests.get(requestId)
       if (request) {
         request.status = 'cancelled'
@@ -297,22 +299,25 @@ export class ApiManager {
   }
 
   // 批量请求
-  async batchRequest(requests: Array<{
-    endpointId: string
-    options?: any
-  }>): Promise<any[]> {
-    const promises = requests.map(req => 
-      this.request(req.endpointId, req.options).catch(error => ({ error }))
-    )
-    
+  async batchRequest(
+    requests: Array<{
+      endpointId: string
+      options?: any
+    }>
+  ): Promise<any[]> {
+    const promises = requests.map(req => this.request(req.endpointId, req.options).catch(error => ({ error })))
+
     return Promise.all(promises)
   }
 
   // 并发请求
-  async concurrentRequest(requests: Array<{
-    endpointId: string
-    options?: any
-  }>, maxConcurrency = 5): Promise<any[]> {
+  async concurrentRequest(
+    requests: Array<{
+      endpointId: string
+      options?: any
+    }>,
+    maxConcurrency = 5
+  ): Promise<any[]> {
     const results: any[] = []
     const executing: Promise<any>[] = []
 
@@ -344,11 +349,7 @@ export class ApiManager {
   }
 
   // 请求历史
-  getRequestHistory(filter?: {
-    endpoint?: string
-    status?: string
-    limit?: number
-  }): ApiRequest[] {
+  getRequestHistory(filter?: { endpoint?: string; status?: string; limit?: number }): ApiRequest[] {
     let history = Array.from(this.requests.values())
 
     if (filter) {
@@ -382,16 +383,21 @@ export class ApiManager {
     hitRate: number
   } {
     const entries = Array.from(this.cache.values())
-    const totalSize = entries.reduce((sum, entry) => 
-      sum + JSON.stringify(entry.data).length, 0
-    )
+    const totalSize = entries.reduce((sum, entry) => sum + JSON.stringify(entry.data).length, 0)
+
+    // 计算缓存命中率
+    const totalRequests = this.cacheHits + this.cacheMisses
+    const hitRate = totalRequests > 0 ? (this.cacheHits / totalRequests) * 100 : 0
 
     return {
       size: totalSize,
       entries: entries.length,
-      hitRate: 0 // TODO: 实现命中率统计
+      hitRate: Math.round(hitRate * 100) / 100,
     }
   }
+
+  private cacheHits = 0
+  private cacheMisses = 0
 
   // 健康检查
   async healthCheck(): Promise<{
@@ -411,24 +417,26 @@ export class ApiManager {
           return {
             id: endpoint.id,
             status: 'ok' as const,
-            responseTime: Date.now() - startTime
+            responseTime: Date.now() - startTime,
           }
         } catch (error) {
           return {
             id: endpoint.id,
             status: 'error' as const,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           }
         }
       })
     )
 
-    const endpoints = results.map(result => 
-      result.status === 'fulfilled' ? result.value : {
-        id: 'unknown',
-        status: 'error' as const,
-        error: 'Health check failed'
-      }
+    const endpoints = results.map(result =>
+      result.status === 'fulfilled'
+        ? result.value
+        : {
+            id: 'unknown',
+            status: 'error' as const,
+            error: 'Health check failed',
+          }
     )
 
     const healthyCount = endpoints.filter(ep => ep.status === 'ok').length
@@ -444,19 +452,16 @@ export class ApiManager {
   } {
     return {
       config: this.getConfig(),
-      endpoints: this.getAllEndpoints()
+      endpoints: this.getAllEndpoints(),
     }
   }
 
   // 导入配置
-  importConfig(data: {
-    config?: Partial<ApiConfig>
-    endpoints?: ApiEndpoint[]
-  }): void {
+  importConfig(data: { config?: Partial<ApiConfig>; endpoints?: ApiEndpoint[] }): void {
     if (data.config) {
       this.updateConfig(data.config)
     }
-    
+
     if (data.endpoints) {
       this.endpoints.clear()
       data.endpoints.forEach(endpoint => {
@@ -468,7 +473,7 @@ export class ApiManager {
   // 私有方法
   private buildUrl(url: string, params?: Record<string, any>): string {
     let fullUrl = url.startsWith('http') ? url : `${this.config.baseURL}${url}`
-    
+
     if (params) {
       const searchParams = new URLSearchParams()
       Object.entries(params).forEach(([key, value]) => {
@@ -476,13 +481,13 @@ export class ApiManager {
           searchParams.append(key, String(value))
         }
       })
-      
+
       const queryString = searchParams.toString()
       if (queryString) {
         fullUrl += (fullUrl.includes('?') ? '&' : '?') + queryString
       }
     }
-    
+
     return fullUrl
   }
 
@@ -493,13 +498,11 @@ export class ApiManager {
     const fetchOptions: RequestInit = {
       method: config.method,
       headers: config.headers,
-      signal: controller.signal
+      signal: controller.signal,
     }
 
     if (config.body && config.method !== 'GET') {
-      fetchOptions.body = typeof config.body === 'string' 
-        ? config.body 
-        : JSON.stringify(config.body)
+      fetchOptions.body = typeof config.body === 'string' ? config.body : JSON.stringify(config.body)
     }
 
     // 设置超时
@@ -552,7 +555,7 @@ export class ApiManager {
           processedResponse = await interceptor.handler(processedResponse)
         } catch (error) {
           console.error(`Response interceptor '${interceptor.name}' failed:`, error)
-          
+
           if (interceptor.errorHandler) {
             try {
               processedResponse = await interceptor.errorHandler(error)
@@ -568,10 +571,7 @@ export class ApiManager {
   }
 
   private shouldUseCache(endpoint: ApiEndpoint, options: any): boolean {
-    return this.config.cache.enabled && 
-           endpoint.method === 'GET' && 
-           (options.cache !== false) && 
-           (endpoint.cache !== false)
+    return this.config.cache.enabled && endpoint.method === 'GET' && options.cache !== false && endpoint.cache !== false
   }
 
   private getFromCache(key: string): any | null {
@@ -599,7 +599,7 @@ export class ApiManager {
       key,
       data,
       timestamp: Date.now(),
-      maxAge: this.config.cache.maxAge
+      maxAge: this.config.cache.maxAge,
     })
   }
 
@@ -607,19 +607,13 @@ export class ApiManager {
     return this.config.retryConfig.retryCondition(error)
   }
 
-  private async retryRequest(
-    endpointId: string, 
-    options: any, 
-    attempt: number
-  ): Promise<any> {
+  private async retryRequest(endpointId: string, options: any, attempt: number): Promise<any> {
     if (attempt > this.config.retryConfig.maxRetries) {
       throw new Error(`Max retries (${this.config.retryConfig.maxRetries}) exceeded`)
     }
 
     // 等待重试延迟
-    await new Promise(resolve => 
-      setTimeout(resolve, this.config.retryConfig.retryDelay * attempt)
-    )
+    await new Promise(resolve => setTimeout(resolve, this.config.retryConfig.retryDelay * attempt))
 
     try {
       return await this.request(endpointId, options)
@@ -641,22 +635,22 @@ export const defaultApiConfig: ApiConfig = {
   baseURL: '',
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   },
   interceptors: {
     request: [],
-    response: []
+    response: [],
   },
   retryConfig: {
     maxRetries: 3,
     retryDelay: 1000,
-    retryCondition: (error) => error.status >= 500
+    retryCondition: error => error.status >= 500,
   },
   cache: {
     enabled: true,
     maxAge: 300000,
-    maxSize: 100
-  }
+    maxSize: 100,
+  },
 }
 
 // 全局 API 管理器实例
@@ -677,18 +671,14 @@ export const createEndpoint = (
   method,
   url,
   name: options.name || id,
-  ...options
+  ...options,
 })
 
-export const createRequestInterceptor = (
-  id: string,
-  name: string,
-  handler: RequestInterceptor['handler']
-): RequestInterceptor => ({
+export const createRequestInterceptor = (id: string, name: string, handler: RequestInterceptor['handler']): RequestInterceptor => ({
   id,
   name,
   handler,
-  enabled: true
+  enabled: true,
 })
 
 export const createResponseInterceptor = (
@@ -701,89 +691,79 @@ export const createResponseInterceptor = (
   name,
   handler,
   errorHandler,
-  enabled: true
+  enabled: true,
 })
 
 // 常用拦截器
 export const commonInterceptors = {
   // 认证拦截器
-  auth: (token: string) => createRequestInterceptor(
-    'auth',
-    'Authentication',
-    (config) => ({
+  auth: (token: string) =>
+    createRequestInterceptor('auth', 'Authentication', config => ({
       ...config,
       headers: {
         ...config.headers,
-        'Authorization': `Bearer ${token}`
-      }
-    })
-  ),
+        Authorization: `Bearer ${token}`,
+      },
+    })),
 
   // 日志拦截器
   logging: () => ({
-    request: createRequestInterceptor(
-      'logging-request',
-      'Request Logging',
-      (config) => {
-        console.log('API Request:', config)
-        return config
-      }
-    ),
+    request: createRequestInterceptor('logging-request', 'Request Logging', config => {
+      console.log('API Request:', config)
+      return config
+    }),
     response: createResponseInterceptor(
       'logging-response',
       'Response Logging',
-      (response) => {
+      response => {
         console.log('API Response:', response)
         return response
       },
-      (error) => {
+      error => {
         console.error('API Error:', error)
         throw error
       }
-    )
+    ),
   }),
 
   // 错误处理拦截器
-  errorHandler: () => createResponseInterceptor(
-    'error-handler',
-    'Error Handler',
-    (response) => response,
-    (error) => {
-      // 统一错误处理逻辑
-      if (error.status === 401) {
-        // 处理未授权
-        console.error('Unauthorized access')
-      } else if (error.status >= 500) {
-        // 处理服务器错误
-        console.error('Server error:', error)
+  errorHandler: () =>
+    createResponseInterceptor(
+      'error-handler',
+      'Error Handler',
+      response => response,
+      error => {
+        // 统一错误处理逻辑
+        if (error.status === 401) {
+          // 处理未授权
+          console.error('Unauthorized access')
+        } else if (error.status >= 500) {
+          // 处理服务器错误
+          console.error('Server error:', error)
+        }
+        throw error
       }
-      throw error
-    }
-  ),
+    ),
 
   // 加载状态拦截器
   loading: (setLoading: (loading: boolean) => void) => ({
-    request: createRequestInterceptor(
-      'loading-request',
-      'Loading Start',
-      (config) => {
-        setLoading(true)
-        return config
-      }
-    ),
+    request: createRequestInterceptor('loading-request', 'Loading Start', config => {
+      setLoading(true)
+      return config
+    }),
     response: createResponseInterceptor(
       'loading-response',
       'Loading End',
-      (response) => {
+      response => {
         setLoading(false)
         return response
       },
-      (error) => {
+      error => {
         setLoading(false)
         throw error
       }
-    )
-  })
+    ),
+  }),
 }
 
 // Vue 组合式 API 钩子
@@ -812,30 +792,25 @@ export const useApiManager = (config?: Partial<ApiConfig>) => {
     loading: computed(() => loading.value),
     error: computed(() => error.value),
     request,
-    
+
     // 便捷方法
-    get: (endpointId: string, params?: any) => 
-      request(endpointId, { params }),
-    
-    post: (endpointId: string, body?: any) => 
-      request(endpointId, { body }),
-    
-    put: (endpointId: string, body?: any) => 
-      request(endpointId, { body }),
-    
-    delete: (endpointId: string, params?: any) => 
-      request(endpointId, { params }),
-    
+    get: (endpointId: string, params?: any) => request(endpointId, { params }),
+
+    post: (endpointId: string, body?: any) => request(endpointId, { body }),
+
+    put: (endpointId: string, body?: any) => request(endpointId, { body }),
+
+    delete: (endpointId: string, params?: any) => request(endpointId, { params }),
+
     // 管理方法
-    registerEndpoint: (endpoint: ApiEndpoint) => 
-      manager.registerEndpoint(endpoint),
-    
+    registerEndpoint: (endpoint: ApiEndpoint) => manager.registerEndpoint(endpoint),
+
     addInterceptor: (type: 'request' | 'response', interceptor: any) => {
       if (type === 'request') {
         manager.addRequestInterceptor(interceptor)
       } else {
         manager.addResponseInterceptor(interceptor)
       }
-    }
+    },
   }
 }

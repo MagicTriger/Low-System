@@ -1,105 +1,33 @@
 // 大纲树组件
 export { default as OutlineTree } from './OutlineTree.vue'
 
-// 类型定义
-export interface OutlineNode {
-  id: string
-  key: string
-  title: string
-  name: string
-  kind: string
-  hidden: boolean
-  locked: boolean
-  hasError: boolean
-  level: number
-  parentId?: string
-  children?: OutlineNode[]
-  control: any // Control 类型
-}
+// 类型定义 - 从 types.ts 导出
+export type {
+  OutlineNode,
+  OverlayOutlineNode,
+  OutlineTreeData,
+  OutlineConfig,
+  OutlineAction,
+  OutlineViewType,
+  NodeDropPosition,
+  NodeMoveDirection,
+  OutlineTreeEvents,
+} from './types'
 
-export interface OutlineConfig {
-  showHidden: boolean
-  expandAll: boolean
-  showIcons: boolean
-  showBadges: boolean
-  enableDrag: boolean
-  enableSearch: boolean
-}
+// 类型守卫
+export { isOverlayNode, isPageNode } from './types'
 
-export interface OutlineAction {
-  key: string
-  label: string
-  icon: string
-  disabled?: boolean
-  danger?: boolean
-  divider?: boolean
-}
-
-// 默认配置
-export const defaultOutlineConfig: OutlineConfig = {
-  showHidden: true,
-  expandAll: false,
-  showIcons: true,
-  showBadges: true,
-  enableDrag: true,
-  enableSearch: true
-}
-
-// 预定义操作
-export const defaultOutlineActions: OutlineAction[] = [
-  { key: 'copy', label: '复制', icon: 'copy-outlined' },
-  { key: 'duplicate', label: '复制并粘贴', icon: 'diff-outlined' },
-  { key: 'delete', label: '删除', icon: 'delete-outlined', danger: true },
-  { key: 'divider-1', label: '', icon: '', divider: true },
-  { key: 'move-up', label: '上移', icon: 'arrow-up-outlined' },
-  { key: 'move-down', label: '下移', icon: 'arrow-down-outlined' },
-  { key: 'divider-2', label: '', icon: '', divider: true },
-  { key: 'rename', label: '重命名', icon: 'edit-outlined' },
-  { key: 'properties', label: '属性', icon: 'setting-outlined' }
-]
-
-// 控件图标映射
-export const controlIconMap: Record<string, string> = {
-  'span': 'font-size-outlined',
-  'button': 'control-outlined',
-  'string': 'field-string-outlined',
-  'number': 'field-number-outlined',
-  'boolean': 'check-square-outlined',
-  'image': 'picture-outlined',
-  'flex': 'layout-outlined',
-  'grid': 'table-outlined',
-  'table': 'table-outlined',
-  'line-chart': 'line-chart-outlined',
-  'bar-chart': 'bar-chart-outlined',
-  'pie-chart': 'pie-chart-outlined',
-  'mobile-container': 'mobile-outlined',
-  'mobile-list': 'unordered-list-outlined',
-  'svg-icon': 'star-outlined',
-  'svg-shape': 'bg-colors-outlined'
-}
-
-// 控件颜色映射
-export const controlColorMap: Record<string, string> = {
-  'span': '#1890ff',
-  'button': '#52c41a',
-  'string': '#722ed1',
-  'number': '#fa8c16',
-  'boolean': '#13c2c2',
-  'image': '#eb2f96',
-  'flex': '#2f54eb',
-  'grid': '#389e0d',
-  'table': '#d48806',
-  'line-chart': '#1890ff',
-  'bar-chart': '#52c41a',
-  'pie-chart': '#fa541c',
-  'mobile-container': '#722ed1',
-  'mobile-list': '#13c2c2',
-  'svg-icon': '#eb2f96',
-  'svg-shape': '#2f54eb'
-}
+// 默认配置和常量
+export { defaultOutlineConfig, defaultOutlineActions, controlIconMap, controlColorMap } from './types'
 
 // 工具函数
-export const buildOutlineTree = (controls: any[], parentId?: string, level = 0): OutlineNode[] => {
+import type { Control } from '../../base'
+import type { OutlineNode, OverlayOutlineNode, OutlineTreeData } from './types'
+
+/**
+ * 构建页面组件的大纲树
+ */
+export const buildOutlineTree = (controls: Control[], parentId?: string, level = 0): OutlineNode[] => {
   return controls.map((control, index) => {
     const node: OutlineNode = {
       id: control.id,
@@ -109,21 +37,73 @@ export const buildOutlineTree = (controls: any[], parentId?: string, level = 0):
       kind: control.kind,
       hidden: control.styles?.display === 'none' || control.styles?.visibility === 'hidden',
       locked: control.locked || false,
-      hasError: false, // TODO: 实现错误检测
+      hasError: false,
       level,
       parentId,
-      control
+      control,
     }
-    
+
     if (control.children && control.children.length > 0) {
       node.children = buildOutlineTree(control.children, node.id, level + 1)
     }
-    
+
     return node
   })
 }
 
-export const findNodeById = (nodes: OutlineNode[], id: string): OutlineNode | null => {
+/**
+ * 构建浮层组件的大纲树
+ */
+export const buildOverlayOutlineTree = (overlays: Control[], openOverlayIds: string[] = []): OverlayOutlineNode[] => {
+  return overlays.map((overlay, index) => {
+    const overlayId = overlay.id
+    const isActive = openOverlayIds.includes(overlayId)
+
+    const node: OverlayOutlineNode = {
+      id: overlayId,
+      key: `overlay-${index}`,
+      title: overlay.name || `浮层 ${index + 1}`,
+      name: overlay.name || '',
+      kind: overlay.kind || 'overlay-container',
+      hidden: false,
+      locked: overlay.locked || false,
+      hasError: false,
+      level: 0,
+      isOverlay: true,
+      isActive,
+      overlayId,
+      overlayType: overlay.props?.overlayType || 'modal',
+      overlayProps: overlay.props,
+      control: overlay,
+    }
+
+    // 构建浮层内部的组件树
+    if (overlay.children && overlay.children.length > 0) {
+      node.children = buildOutlineTree(overlay.children, node.id, 1)
+    }
+
+    return node
+  })
+}
+
+/**
+ * 构建完整的大纲树数据（包含页面和浮层）
+ */
+export const buildOutlineTreeData = (
+  pageControls: Control[],
+  overlayControls: Control[] = [],
+  openOverlayIds: string[] = []
+): OutlineTreeData => {
+  return {
+    pageNodes: buildOutlineTree(pageControls),
+    overlayNodes: buildOverlayOutlineTree(overlayControls, openOverlayIds),
+  }
+}
+
+/**
+ * 根据ID查找节点
+ */
+export const findNodeById = (nodes: (OutlineNode | OverlayOutlineNode)[], id: string): OutlineNode | OverlayOutlineNode | null => {
   for (const node of nodes) {
     if (node.id === id) {
       return node
@@ -136,7 +116,10 @@ export const findNodeById = (nodes: OutlineNode[], id: string): OutlineNode | nu
   return null
 }
 
-export const findNodeByKey = (nodes: OutlineNode[], key: string): OutlineNode | null => {
+/**
+ * 根据key查找节点
+ */
+export const findNodeByKey = (nodes: (OutlineNode | OverlayOutlineNode)[], key: string): OutlineNode | OverlayOutlineNode | null => {
   for (const node of nodes) {
     if (node.key === key) {
       return node
@@ -149,9 +132,12 @@ export const findNodeByKey = (nodes: OutlineNode[], key: string): OutlineNode | 
   return null
 }
 
-export const getAllNodeKeys = (nodes: OutlineNode[]): string[] => {
+/**
+ * 获取所有节点的key
+ */
+export const getAllNodeKeys = (nodes: (OutlineNode | OverlayOutlineNode)[]): string[] => {
   const keys: string[] = []
-  const traverse = (nodes: OutlineNode[]) => {
+  const traverse = (nodes: (OutlineNode | OverlayOutlineNode)[]) => {
     nodes.forEach(node => {
       keys.push(node.key)
       if (node.children) {
@@ -163,38 +149,48 @@ export const getAllNodeKeys = (nodes: OutlineNode[]): string[] => {
   return keys
 }
 
-export const searchNodes = (nodes: OutlineNode[], keyword: string): OutlineNode[] => {
-  const result: OutlineNode[] = []
+/**
+ * 搜索节点
+ */
+export const searchNodes = (nodes: (OutlineNode | OverlayOutlineNode)[], keyword: string): (OutlineNode | OverlayOutlineNode)[] => {
+  const result: (OutlineNode | OverlayOutlineNode)[] = []
   const lowerKeyword = keyword.toLowerCase()
-  
+
   for (const node of nodes) {
-    const matches = node.name.toLowerCase().includes(lowerKeyword) || 
-                   node.kind.toLowerCase().includes(lowerKeyword)
-    
-    let childMatches: OutlineNode[] = []
+    const matches = node.name.toLowerCase().includes(lowerKeyword) || node.kind.toLowerCase().includes(lowerKeyword)
+
+    let childMatches: (OutlineNode | OverlayOutlineNode)[] = []
     if (node.children) {
       childMatches = searchNodes(node.children, keyword)
     }
-    
+
     if (matches || childMatches.length > 0) {
       result.push({
         ...node,
-        children: childMatches.length > 0 ? childMatches : node.children
+        children: childMatches.length > 0 ? childMatches : node.children,
       })
     }
   }
-  
+
   return result
 }
 
-export const filterHiddenNodes = (nodes: OutlineNode[]): OutlineNode[] => {
-  return nodes.filter(node => !node.hidden).map(node => ({
-    ...node,
-    children: node.children ? filterHiddenNodes(node.children) : undefined
-  }))
+/**
+ * 过滤隐藏的节点
+ */
+export const filterHiddenNodes = (nodes: (OutlineNode | OverlayOutlineNode)[]): (OutlineNode | OverlayOutlineNode)[] => {
+  return nodes
+    .filter(node => !node.hidden)
+    .map(node => ({
+      ...node,
+      children: node.children ? filterHiddenNodes(node.children) : undefined,
+    }))
 }
 
-export const countNodes = (nodes: OutlineNode[]): number => {
+/**
+ * 统计节点数量
+ */
+export const countNodes = (nodes: (OutlineNode | OverlayOutlineNode)[]): number => {
   let count = nodes.length
   nodes.forEach(node => {
     if (node.children) {
@@ -204,58 +200,111 @@ export const countNodes = (nodes: OutlineNode[]): number => {
   return count
 }
 
-export const getNodePath = (nodes: OutlineNode[], targetId: string): OutlineNode[] => {
-  const path: OutlineNode[] = []
-  
-  const findPath = (nodes: OutlineNode[], targetId: string, currentPath: OutlineNode[]): boolean => {
+/**
+ * 获取节点路径
+ */
+export const getNodePath = (nodes: (OutlineNode | OverlayOutlineNode)[], targetId: string): (OutlineNode | OverlayOutlineNode)[] => {
+  const path: (OutlineNode | OverlayOutlineNode)[] = []
+
+  const findPath = (
+    nodes: (OutlineNode | OverlayOutlineNode)[],
+    targetId: string,
+    currentPath: (OutlineNode | OverlayOutlineNode)[]
+  ): boolean => {
     for (const node of nodes) {
       const newPath = [...currentPath, node]
-      
+
       if (node.id === targetId) {
         path.push(...newPath)
         return true
       }
-      
+
       if (node.children && findPath(node.children, targetId, newPath)) {
         return true
       }
     }
     return false
   }
-  
+
   findPath(nodes, targetId, [])
   return path
 }
 
-export const canMoveNode = (
-  nodes: OutlineNode[], 
-  nodeId: string, 
-  direction: 'up' | 'down'
-): boolean => {
-  // TODO: 实现移动判断逻辑
-  return true
+/**
+ * 判断节点是否可以移动
+ */
+export const canMoveNode = (nodes: (OutlineNode | OverlayOutlineNode)[], nodeId: string, direction: 'up' | 'down'): boolean => {
+  const findNodeWithSiblings = (
+    nodeList: (OutlineNode | OverlayOutlineNode)[],
+    targetId: string
+  ): { node: OutlineNode | OverlayOutlineNode; siblings: (OutlineNode | OverlayOutlineNode)[]; index: number } | null => {
+    for (let i = 0; i < nodeList.length; i++) {
+      const node = nodeList[i]
+      if (node.id === targetId) {
+        return { node, siblings: nodeList, index: i }
+      }
+      if (node.children) {
+        const found = findNodeWithSiblings(node.children, targetId)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  const result = findNodeWithSiblings(nodes, nodeId)
+  if (!result) return false
+
+  const { index, siblings } = result
+  if (direction === 'up') return index > 0
+  if (direction === 'down') return index < siblings.length - 1
+  return false
 }
 
+/**
+ * 移动节点
+ */
 export const moveNode = (
-  nodes: OutlineNode[], 
-  nodeId: string, 
+  nodes: (OutlineNode | OverlayOutlineNode)[],
+  nodeId: string,
   direction: 'up' | 'down'
-): OutlineNode[] => {
-  // TODO: 实现节点移动逻辑
-  return nodes
+): (OutlineNode | OverlayOutlineNode)[] => {
+  const clonedNodes = JSON.parse(JSON.stringify(nodes))
+
+  const findAndMove = (nodeList: (OutlineNode | OverlayOutlineNode)[]): boolean => {
+    for (let i = 0; i < nodeList.length; i++) {
+      if (nodeList[i].id === nodeId) {
+        const targetIndex = direction === 'up' ? i - 1 : i + 1
+        if (targetIndex >= 0 && targetIndex < nodeList.length) {
+          ;[nodeList[i], nodeList[targetIndex]] = [nodeList[targetIndex], nodeList[i]]
+          return true
+        }
+        return false
+      }
+      if (nodeList[i].children) {
+        if (findAndMove(nodeList[i].children!)) return true
+      }
+    }
+    return false
+  }
+
+  findAndMove(clonedNodes)
+  return clonedNodes
 }
 
-export const duplicateNode = (node: OutlineNode): OutlineNode => {
-  const newNode: OutlineNode = {
+/**
+ * 复制节点
+ */
+export const duplicateNode = (node: OutlineNode | OverlayOutlineNode): OutlineNode | OverlayOutlineNode => {
+  const newNode = {
     ...node,
     id: `${node.id}_copy_${Date.now()}`,
     key: `${node.key}_copy`,
-    name: `${node.name} 副本`
+    name: `${node.name} 副本`,
   }
-  
+
   if (node.children) {
     newNode.children = node.children.map(child => duplicateNode(child))
   }
-  
+
   return newNode
 }

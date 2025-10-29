@@ -1,33 +1,27 @@
 <template>
   <div class="events-panel">
-    <div v-if="!control" class="panel-empty">
-      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-      </svg>
-      <p class="empty-text">请选择一个组件</p>
-    </div>
-
-    <div v-else class="panel-content">
-      <div class="panel-placeholder">
-        <p>事件配置系统正在重构中...</p>
-        <p class="placeholder-hint">新的事件配置系统将提供更好的用户体验</p>
-      </div>
-    </div>
+    <EventConfigPanel :control="control" :resource-code="resourceCode" @update="handleUpdate" />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Control } from '@/core/types'
+import EventConfigPanel from './EventConfigPanel.vue'
 
 interface Props {
   control: Control | null
+  resourceCode?: string
 }
 
 defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   update: [event: string, executions: any[]]
 }>()
+
+function handleUpdate(eventName: string, actions: any[]) {
+  emit('update', eventName, actions)
+}
 </script>
 
 <style scoped>

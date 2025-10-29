@@ -7,6 +7,10 @@ import type { IDataSource, IDataSourceFactory, DataSourceConfig, DataSourceCreat
 import { DataSourceError } from './interfaces/IDataSource'
 import type { Logger } from '../logging/Logger'
 import type { EventBus } from '../events/EventBus'
+import type { IDataSourcePluginRegistry } from './plugins/IDataSourcePlugin'
+import { DataSourcePluginRegistry } from './plugins/DataSourcePluginRegistry'
+import { HttpDataSourcePlugin } from './plugins/builtin/HttpDataSourcePlugin'
+import { StaticDataSourcePlugin } from './plugins/builtin/StaticDataSourcePlugin'
 
 /**
  * 数据源工厂配置
@@ -42,8 +46,10 @@ export class DataSourceFactory implements IDataSourceFactory {
   private config: Required<DataSourceFactoryConfig>
   private logger?: Logger
   private eventBus?: EventBus
+  private pluginRegistry: IDataSourcePluginRegistry
 
-  constructor(config: DataSourceFactoryConfig = {}, logger?: Logger, eventBus?: EventBus) {
+  constructor(pluginRegistry: IDataSourcePluginRegistry, config: DataSourceFactoryConfig = {}, logger?: Logger, eventBus?: EventBus) {
+    this.pluginRegistry = pluginRegistry
     this.config = {
       enableCache: true,
       enableLogging: true,
@@ -75,48 +81,65 @@ export class DataSourceFactory implements IDataSourceFactory {
       return this.instances.get(fullConfig.id) as IDataSource<T>
     }
 
-    // 获取创建器
-    const creator = this.creators.get(fullConfig.type)
-    if (!creator) {
-      throw new DataSourceError(`Unsupported data source type: ${fullConfig.type}`, fullConfig.id)
+    // 首先尝试从插件系统获取创建器
+    const plugin = this.pluginRegistry.getPluginByType(fullConfig.type)
+    let dataSource: IDataSource<T>
+
+    if (plugin) {
+      // 使用插件创建数据源
+      try {
+        if (!plugin.validateConfig(fullConfig)) {
+          throw new DataSourceError(`Invalid configuration for data source type: ${fullConfig.type}`, fullConfig.id)
+        }
+
+        dataSource = plugin.createDataSource<T>(fullConfig)
+      } catch (error) {
+        const err = new DataSourceError(`Failed to create data source via plugin: ${fullConfig.id}`, fullConfig.id, error as Error)
+        this.logger?.error('Data source creation failed', err)
+        this.eventBus?.emit('datasource.error', { id: fullConfig.id, error: err })
+        throw err
+      }
+    } else {
+      // 回退到传统的创建器方式（向后兼容）
+      const creator = this.creators.get(fullConfig.type)
+      if (!creator) {
+        throw new DataSourceError(`Unsupported data source type: ${fullConfig.type}`, fullConfig.id)
+      }
+
+      try {
+        dataSource = creator<T>(fullConfig)
+      } catch (error) {
+        const err = new DataSourceError(`Failed to create data source: ${fullConfig.id}`, fullConfig.id, error as Error)
+        this.logger?.error('Data source creation failed', err)
+        this.eventBus?.emit('datasource.error', { id: fullConfig.id, error: err })
+        throw err
+      }
     }
 
-    // 创建数据源
-    try {
-      const dataSource = creator<T>(fullConfig)
+    // 缓存实例
+    if (this.config.enableCache) {
+      this.instances.set(fullConfig.id, dataSource)
+    }
 
-      // 缓存实例
-      if (this.config.enableCache) {
-        this.instances.set(fullConfig.id, dataSource)
-      }
+    // 设置事件监听
+    this.setupDataSourceEvents(dataSource)
 
-      // 设置事件监听
-      this.setupDataSourceEvents(dataSource)
-
-      // 记录日志
-      if (this.config.enableLogging) {
-        this.logger?.info(`Data source created: ${fullConfig.id}`, {
-          type: fullConfig.type,
-          name: fullConfig.name,
-        })
-      }
-
-      // 发送事件
-      this.eventBus?.emit('datasource.created', {
-        id: fullConfig.id,
+    // 记录日志
+    if (this.config.enableLogging) {
+      this.logger?.info(`Data source created: ${fullConfig.id}`, {
         type: fullConfig.type,
-        config: fullConfig,
+        name: fullConfig.name,
       })
-
-      return dataSource
-    } catch (error) {
-      const err = new DataSourceError(`Failed to create data source: ${fullConfig.id}`, fullConfig.id, error as Error)
-
-      this.logger?.error('Data source creation failed', err)
-      this.eventBus?.emit('datasource.error', { id: fullConfig.id, error: err })
-
-      throw err
     }
+
+    // 发送事件
+    this.eventBus?.emit('datasource.created', {
+      id: fullConfig.id,
+      type: fullConfig.type,
+      config: fullConfig,
+    })
+
+    return dataSource
   }
 
   /**
@@ -270,7 +293,22 @@ export let globalDataSourceFactory: DataSourceFactory | null = null
  */
 export function getGlobalDataSourceFactory(): DataSourceFactory {
   if (!globalDataSourceFactory) {
-    globalDataSourceFactory = new DataSourceFactory()
+    // 创建插件注册表
+    const pluginRegistry = new DataSourcePluginRegistry()
+
+    // 注册内置插件
+    const httpPlugin = new HttpDataSourcePlugin()
+    const staticPlugin = new StaticDataSourcePlugin()
+
+    pluginRegistry.register(httpPlugin)
+    pluginRegistry.register(staticPlugin)
+
+    // 初始化插件
+    pluginRegistry.initializeAll().catch(error => {
+      console.error('Failed to initialize data source plugins:', error)
+    })
+
+    globalDataSourceFactory = new DataSourceFactory(pluginRegistry)
   }
   return globalDataSourceFactory
 }

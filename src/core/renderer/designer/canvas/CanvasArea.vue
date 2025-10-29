@@ -2,13 +2,13 @@
   <div
     ref="canvasContainerRef"
     class="canvas-area"
-    :class="{ 'show-grid': showGrid }"
+    :class="{ 'show-grid': showGrid, 'canvas-overlay-mode': canvasMode === 'overlay' }"
     @dragover="handleDragOver"
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
     <div class="canvas-wrapper" :style="wrapperStyle">
-      <div ref="canvasRef" class="canvas" :style="canvasStyle" @click="handleCanvasClick">
+      <div ref="canvasRef" class="canvas" :class="canvasClass" :style="canvasStyle" @click="handleCanvasClick">
         <!-- 空状态提示 -->
         <div v-if="isEmpty" class="canvas-empty">
           <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -19,7 +19,7 @@
               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
             ></path>
           </svg>
-          <p class="empty-text">从左侧组件库拖拽组件到这里开始设计</p>
+          <p class="empty-text">{{ emptyText }}</p>
         </div>
 
         <!-- 控件渲染区域 -->
@@ -43,9 +43,12 @@ interface Props {
   showGrid: boolean
   isEmpty: boolean
   dropIndicator?: DropIndicator | null
+  canvasMode?: 'page' | 'overlay' // 画布模式：页面或浮层
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  canvasMode: 'page',
+})
 
 const emit = defineEmits<{
   drop: [event: DragEvent]
@@ -65,6 +68,13 @@ const wrapperStyle = computed(() => ({
   padding: '40px',
 }))
 
+const canvasClass = computed(() => {
+  return {
+    'canvas-page': props.canvasMode === 'page',
+    'canvas-overlay': props.canvasMode === 'overlay',
+  }
+})
+
 const canvasStyle = computed(() => ({
   width: `${props.width}px`,
   height: `${props.height}px`,
@@ -83,6 +93,14 @@ const dropIndicatorStyle = computed(() => {
     width: `${rect.width}px`,
     height: `${rect.height}px`,
   }
+})
+
+// 空状态提示文本
+const emptyText = computed(() => {
+  if (props.canvasMode === 'overlay') {
+    return '从左侧组件库拖拽组件到浮层画布开始设计'
+  }
+  return '从左侧组件库拖拽组件到这里开始设计'
 })
 
 // 拖放处理
@@ -190,6 +208,35 @@ defineExpose({
   border: 2px dashed #3b82f6;
   background: rgba(59, 130, 246, 0.05);
   border-radius: 4px;
+}
+
+/* 浮层画布模式样式 */
+.canvas-area.canvas-overlay-mode {
+  background: #fef3c7;
+}
+
+.canvas-area.canvas-overlay-mode.show-grid {
+  background-image:
+    linear-gradient(rgba(245, 158, 11, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(245, 158, 11, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: -1px -1px;
+  background-color: #fef3c7;
+}
+
+.canvas-overlay {
+  border: 2px solid #f59e0b;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+}
+
+/* 确保浮层画布内的组件正常渲染 */
+.canvas-overlay-mode .canvas {
+  /* 浮层画布内的组件使用相同的渲染规则 */
+  position: relative;
+}
+
+.canvas-overlay-mode .canvas > * {
+  /* 确保子组件可以正常定位 */
+  box-sizing: border-box;
 }
 
 /* 滚动条样式 */

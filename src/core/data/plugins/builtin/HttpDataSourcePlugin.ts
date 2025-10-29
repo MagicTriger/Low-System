@@ -3,7 +3,7 @@
  * 提供基于HTTP/REST API的数据源
  */
 
-import type { IDataSource, DataSourceConfig } from '../../interfaces'
+import type { IDataSource, DataSourceConfig, DataSourceState, DataSourceMetadata, LoadOptions, DataSourceEvents } from '../../interfaces'
 import { BaseDataSourcePlugin } from '../BaseDataSourcePlugin'
 import type { DataSourcePluginMetadata } from '../IDataSourcePlugin'
 
@@ -22,22 +22,27 @@ class HttpDataSource<T = any> implements IDataSource<T> {
   private _data: T | null = null
   private _error: Error | null = null
   private _isLoading = false
+  private _state: DataSourceState = 'idle' as DataSourceState
+  private eventHandlers: Map<keyof DataSourceEvents, Set<Function>> = new Map()
 
   constructor(public readonly config: HttpDataSourceConfig) {}
 
-  get metadata() {
+  get metadata(): DataSourceMetadata {
     return {
-      type: 'http',
-      version: '1.0.0',
-      capabilities: ['load', 'refresh'],
+      id: this.config.id,
+      name: this.config.name,
+      type: this.config.type,
+      state: this.state,
+      hasCached: false,
+      recordCount: this._data ? (Array.isArray(this._data) ? this._data.length : 1) : 0,
     }
   }
 
-  get state() {
-    if (this._isLoading) return 'loading' as const
-    if (this._error) return 'error' as const
-    if (this._data) return 'loaded' as const
-    return 'idle' as const
+  get state(): DataSourceState {
+    if (this._isLoading) return 'loading' as DataSourceState
+    if (this._error) return 'error' as DataSourceState
+    if (this._data) return 'loaded' as DataSourceState
+    return 'idle' as DataSourceState
   }
 
   get data(): T | null {
@@ -56,13 +61,16 @@ class HttpDataSource<T = any> implements IDataSource<T> {
     return this._error
   }
 
-  async load(options?: any): Promise<T> {
+  async load(options?: LoadOptions): Promise<T> {
+    this.emit('before-load', options)
+
+    const prevState = this.state
     this._isLoading = true
     this._error = null
 
     try {
-      const url = this.buildUrl()
-      const fetchOptions = this.buildFetchOptions()
+      const url = this.buildUrl(options?.params)
+      const fetchOptions = this.buildFetchOptions(options)
 
       const response = await fetch(url, fetchOptions)
 
@@ -71,21 +79,30 @@ class HttpDataSource<T = any> implements IDataSource<T> {
       }
 
       const data = await response.json()
+      const prevData = this._data
       this._data = data
+
+      this.emit('state-change', this.state, prevState)
+      this.emit('after-load', data)
+      this.emit('data-change', data, prevData)
+
       return data
     } catch (error) {
       this._error = error as Error
+      this.emit('error', error as Error)
+      this.emit('state-change', this.state, prevState)
       throw error
     } finally {
       this._isLoading = false
     }
   }
 
-  async refresh(options?: any): Promise<T> {
+  async refresh(options?: LoadOptions): Promise<T> {
+    this.emit('refresh')
     return this.load({ ...options, forceRefresh: true })
   }
 
-  async reload(options?: any): Promise<T> {
+  async reload(options?: LoadOptions): Promise<T> {
     this.clear()
     return this.load(options)
   }
@@ -103,37 +120,59 @@ class HttpDataSource<T = any> implements IDataSource<T> {
     return this._data
   }
 
-  on(event: string, handler: any): () => void {
-    // 简化实现
-    return () => {}
+  on<K extends keyof DataSourceEvents>(event: K, handler: DataSourceEvents[K]): () => void {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, new Set())
+    }
+    this.eventHandlers.get(event)!.add(handler as Function)
+    return () => this.off(event, handler)
   }
 
-  off(event: string, handler: any): void {
-    // 简化实现
+  off<K extends keyof DataSourceEvents>(event: K, handler: DataSourceEvents[K]): void {
+    const handlers = this.eventHandlers.get(event)
+    if (handlers) {
+      handlers.delete(handler as Function)
+    }
+  }
+
+  private emit<K extends keyof DataSourceEvents>(event: K, ...args: any[]): void {
+    const handlers = this.eventHandlers.get(event)
+    if (handlers) {
+      handlers.forEach(handler => {
+        try {
+          handler(...args)
+        } catch (error) {
+          console.error(`Error in event handler for ${event}:`, error)
+        }
+      })
+    }
   }
 
   dispose(): void {
     this.clear()
+    this.eventHandlers.clear()
   }
 
-  private buildUrl(): string {
+  private buildUrl(additionalParams?: Record<string, any>): string {
     const { url, params } = this.config
-    if (!params || Object.keys(params).length === 0) {
+    const allParams = { ...params, ...additionalParams }
+
+    if (!allParams || Object.keys(allParams).length === 0) {
       return url
     }
 
     const searchParams = new URLSearchParams()
-    Object.entries(params).forEach(([key, value]) => {
+    Object.entries(allParams).forEach(([key, value]) => {
       searchParams.append(key, String(value))
     })
 
     return `${url}?${searchParams.toString()}`
   }
 
-  private buildFetchOptions(): RequestInit {
+  private buildFetchOptions(options?: LoadOptions): RequestInit {
     const { method = 'GET', headers, body, timeout } = this.config
 
-    const options: RequestInit = {
+    const fetchOptions: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -142,16 +181,19 @@ class HttpDataSource<T = any> implements IDataSource<T> {
     }
 
     if (body && method !== 'GET') {
-      options.body = JSON.stringify(body)
+      fetchOptions.body = JSON.stringify(body)
     }
 
-    if (timeout) {
+    const effectiveTimeout = options?.timeout || timeout
+    if (effectiveTimeout || options?.signal) {
       const controller = new AbortController()
-      setTimeout(() => controller.abort(), timeout)
-      options.signal = controller.signal
+      if (effectiveTimeout) {
+        setTimeout(() => controller.abort(), effectiveTimeout)
+      }
+      fetchOptions.signal = options?.signal || controller.signal
     }
 
-    return options
+    return fetchOptions
   }
 }
 

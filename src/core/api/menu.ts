@@ -6,6 +6,7 @@
 
 import type { IApiClient } from './IApiClient'
 import { ApiClient } from './ApiClient'
+import type { StandardApiResponse, MenuTreeNode as SharedMenuTreeNode } from './shared-types'
 
 /**
  * 菜单类型枚举
@@ -47,11 +48,19 @@ export interface MenuResource {
 }
 
 /**
- * 菜单树节点
+ * 菜单树节点（扩展版本）
+ *
+ * 扩展自 MenuResource，添加了树形结构支持
  */
 export interface MenuTreeNode extends MenuResource {
   children?: MenuTreeNode[]
 }
+
+/**
+ * @deprecated 使用 MenuTreeNode 替代
+ * 为了向后兼容，保留此类型别名
+ */
+export type MenuApiTreeNode = MenuTreeNode
 
 /**
  * 挂载/取消挂载菜单响应
@@ -129,15 +138,7 @@ export interface MenuUpdateRequest {
   remark?: string
 }
 
-/**
- * 标准 API 响应格式
- */
-export interface StandardApiResponse<T = any> {
-  success: boolean
-  code: number
-  message: string
-  data: T
-}
+// StandardApiResponse 已从 shared-types 导入，不再重复定义
 
 /**
  * 菜单管理 API 服务类

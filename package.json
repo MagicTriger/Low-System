@@ -69,6 +69,7 @@
     "eslint-plugin-vue": "^10.0.0",
     "glob": "^11.0.0",
     "http-server": "^14.1.1",
+    "less": "^4.4.2",
     "postcss": "^8.4.45",
     "postcss-pxtorem": "^6.1.0",
     "prettier": "^3.5.3",

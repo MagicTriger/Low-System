@@ -145,8 +145,10 @@ export interface BaseControlDefinition {
   icon?: string
   component: any
   dataBindable?: boolean
+  canHaveChildren?: boolean // 标记组件是否可以包含子组件
   events?: Record<string, any>
   hidden?: boolean
+  isOverlay?: boolean // 标记为浮层专用组件
 
   /**
    * 属性面板配置

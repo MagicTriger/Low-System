@@ -59,22 +59,40 @@ export const routes: RouteRecordRaw[] = [
   },
   // 设计器页面 (独立路由,不在布局内)
   {
-    path: '/designer/resource/:url',
+    path: '/designer/resource/:url/:name?',
     name: 'DesignerEditor',
     component: DesignerNew,
     meta: {
       title: '设计器',
       requiresAuth: true,
     },
+    props: route => ({
+      url: route.params.url,
+      name: route.params.name,
+    }),
+    children: [
+      // 预览子路由 - 在设计器内预览
+      {
+        path: 'preview',
+        name: 'DesignerPreview',
+        component: () => import('@/modules/designer/views/Preview.vue'),
+        meta: {
+          title: '预览',
+          requiresAuth: true,
+          isPreview: true, // 标记为预览模式
+        },
+      },
+    ],
   },
-  // 预览页面 (独立路由)
+  // 独立预览页面 (用于新窗口预览)
   {
     path: '/preview/:id',
-    name: 'DesignerPreview',
+    name: 'StandalonePreview',
     component: () => import('@/modules/designer/views/Preview.vue'),
     meta: {
       title: '预览页面',
-      requiresAuth: false,
+      requiresAuth: false, // 独立预览不需要认证
+      isStandalone: true, // 标记为独立预览
     },
   },
   // 设计端 404 页面

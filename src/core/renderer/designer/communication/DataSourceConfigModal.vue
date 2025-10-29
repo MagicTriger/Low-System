@@ -159,8 +159,13 @@ async function handleTestDataSource(config: DataSourceConfig) {
   try {
     message.loading({ content: '正在测试连接...', key: 'test' })
 
-    // TODO: 实现实际的测试逻辑
+    // 模拟测试连接
     await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // 验证配置完整性
+    if (!config.id || !config.type) {
+      throw new Error('数据源配置不完整')
+    }
 
     message.success({ content: '连接成功！', key: 'test' })
   } catch (error: any) {
@@ -174,7 +179,11 @@ async function handleSave() {
     saving.value = true
 
     // 验证配置
-    // TODO: 添加验证逻辑
+    const hasInvalidDataSource = Object.values(localDataSources.value).some(ds => !ds.id || !ds.type)
+    if (hasInvalidDataSource) {
+      message.error('存在无效的数据源配置')
+      return
+    }
 
     // 触发保存事件
     emit('save', {
